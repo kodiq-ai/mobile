@@ -66,13 +66,11 @@ platform :ios do
       UI.success("Updated beta app localization")
     end
 
-    # Enable auto-distribution for Internal Testers group
-    groups = app.get_beta_groups.select { |g| g.name == "Internal Testers" && g.is_internal_group }
-    if groups.empty?
-      UI.important("'Internal Testers' group not found — create it in App Store Connect")
-    else
-      group = groups.first
-      UI.success("Found group '#{group.name}' (internal: #{group.is_internal_group})")
+    # List all beta groups
+    groups = app.get_beta_groups
+    UI.success("Found #{groups.count} beta group(s):")
+    groups.each do |g|
+      UI.message("  - '#{g.name}' (internal: #{g.is_internal_group})")
     end
   end
 
