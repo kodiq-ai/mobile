@@ -55,5 +55,17 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<!-- Deep link: kodiq:// URL scheme (OAuth redirect) -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>kodiq</string>
+			</array>
+			<key>CFBundleURLName</key>
+			<string>ai.kodiq</string>
+		</dict>
+	</array>
 </dict>
 </plist>

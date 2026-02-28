@@ -9,38 +9,29 @@ const API_URL = `${ACADEMY_URL.replace('/academy', '')}/api/academy/push-token`;
 
 /**
  * Request push permission, get FCM token, register with backend.
- * Call after user is authenticated in the WebView.
+ * Uses Bearer token auth (JWT from Supabase session).
  */
-export async function registerPushToken(sessionCookie?: string): Promise<void> {
+export async function registerPushToken(accessToken?: string): Promise<void> {
   try {
-    // 1. Request permission (iOS shows prompt, Android auto-grants)
     const authStatus = await messaging().requestPermission();
     const enabled =
       authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
       authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
-    if (!enabled) {
-      return;
-    }
+    if (!enabled) return;
 
-    // 2. Get FCM token
     const token = await messaging().getToken();
-    if (!token) {
-      return;
-    }
+    if (!token) return;
 
-    // 3. Check if already registered (avoid redundant API calls)
+    // Skip if already registered with same token
     const cachedToken = await AsyncStorage.getItem(STORAGE_KEY);
-    if (cachedToken === token) {
-      return;
-    }
+    if (cachedToken === token) return;
 
-    // 4. Register with backend
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
-    if (sessionCookie) {
-      headers['Cookie'] = sessionCookie;
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
     }
 
     const response = await fetch(API_URL, {
@@ -48,9 +39,8 @@ export async function registerPushToken(sessionCookie?: string): Promise<void> {
       headers,
       body: JSON.stringify({
         token,
-        platform: Platform.OS, // 'ios' | 'android'
+        platform: Platform.OS,
       }),
-      credentials: 'include',
     });
 
     if (response.ok) {
@@ -64,18 +54,22 @@ export async function registerPushToken(sessionCookie?: string): Promise<void> {
 /**
  * Unregister push token (call on logout).
  */
-export async function unregisterPushToken(): Promise<void> {
+export async function unregisterPushToken(accessToken?: string): Promise<void> {
   try {
     const token = await AsyncStorage.getItem(STORAGE_KEY);
-    if (!token) {
-      return;
+    if (!token) return;
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
     }
 
     await fetch(API_URL, {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ token }),
-      credentials: 'include',
     });
 
     await AsyncStorage.removeItem(STORAGE_KEY);
@@ -88,27 +82,32 @@ export async function unregisterPushToken(): Promise<void> {
  * Listen for token refreshes (FCM rotates tokens periodically).
  * Returns unsubscribe function.
  */
-export function onTokenRefresh(): () => void {
+export function onTokenRefresh(accessToken?: string): () => void {
   return messaging().onTokenRefresh(async (newToken) => {
     const oldToken = await AsyncStorage.getItem(STORAGE_KEY);
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+
     if (oldToken && oldToken !== newToken) {
-      // Unregister old, register new
       await fetch(API_URL, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ token: oldToken }),
-        credentials: 'include',
       });
     }
 
     await fetch(API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         token: newToken,
         platform: Platform.OS,
       }),
-      credentials: 'include',
     });
 
     await AsyncStorage.setItem(STORAGE_KEY, newToken);
