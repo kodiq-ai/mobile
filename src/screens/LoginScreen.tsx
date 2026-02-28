@@ -33,6 +33,7 @@ export function LoginScreen({ onNavigate }: LoginScreenProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const passwordRef = useRef<TextInput>(null);
 
   const handleEmailLogin = useCallback(async () => {
@@ -48,37 +49,44 @@ export function LoginScreen({ onNavigate }: LoginScreenProps) {
 
   const handleGoogleLogin = useCallback(async () => {
     setLoading(true);
+    setLoadingProvider('google');
     setError(null);
     const result = await signInWithGoogle();
     if (result.error) {
       setError(translateError(result.error));
     }
     setLoading(false);
+    setLoadingProvider(null);
   }, []);
 
   const handleAppleLogin = useCallback(async () => {
     setLoading(true);
+    setLoadingProvider('apple');
     setError(null);
     const result = await signInWithApple();
     if (result.error) {
       setError(translateError(result.error));
     }
     setLoading(false);
+    setLoadingProvider(null);
   }, []);
 
   const handleGitHubLogin = useCallback(async () => {
     setLoading(true);
+    setLoadingProvider('github');
     setError(null);
     const result = await signInWithOAuth('github');
     if (result.error) {
       setError(translateError(result.error));
       setLoading(false);
+      setLoadingProvider(null);
       return;
     }
     if (result.url) {
       await Linking.openURL(result.url);
     }
     setLoading(false);
+    setLoadingProvider(null);
   }, [signInWithOAuth]);
 
   return (
@@ -90,12 +98,14 @@ export function LoginScreen({ onNavigate }: LoginScreenProps) {
           icon={<GitHubIcon />}
           onPress={handleGitHubLogin}
           disabled={loading}
+          loading={loadingProvider === 'github'}
         />
         <OAuthButton
           label="Продолжить с Google"
           icon={<GoogleIcon />}
           onPress={handleGoogleLogin}
           disabled={loading}
+          loading={loadingProvider === 'google'}
         />
         {Platform.OS === 'ios' && (
           <OAuthButton
@@ -103,6 +113,7 @@ export function LoginScreen({ onNavigate }: LoginScreenProps) {
             icon={<AppleIcon />}
             onPress={handleAppleLogin}
             disabled={loading}
+            loading={loadingProvider === 'apple'}
           />
         )}
       </View>

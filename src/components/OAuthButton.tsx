@@ -1,5 +1,12 @@
 import React from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { COLORS } from '../config';
 
@@ -8,6 +15,7 @@ interface OAuthButtonProps {
   icon: React.ReactNode;
   onPress: () => void;
   disabled?: boolean;
+  loading?: boolean;
 }
 
 const FONT_MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
@@ -17,18 +25,27 @@ export function OAuthButton({
   icon,
   onPress,
   disabled,
+  loading,
 }: OAuthButtonProps) {
+  const isDisabled = disabled || loading;
+
   return (
     <Pressable
       onPress={onPress}
-      disabled={disabled}
+      disabled={isDisabled}
       style={({ pressed }) => [
         styles.button,
-        disabled && styles.disabled,
-        pressed && !disabled && styles.pressed,
+        isDisabled && styles.disabled,
+        pressed && !isDisabled && styles.pressed,
       ]}
     >
-      <View style={styles.iconWrapper}>{icon}</View>
+      <View style={styles.iconWrapper}>
+        {loading ? (
+          <ActivityIndicator size="small" color={COLORS.text} />
+        ) : (
+          icon
+        )}
+      </View>
       <Text style={styles.label}>{label}</Text>
     </Pressable>
   );
