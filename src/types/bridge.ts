@@ -9,7 +9,8 @@
 export type WebToNativeMessage =
   | { type: 'navigation'; url: string }
   | { type: 'auth_state'; authenticated: boolean }
-  | { type: 'theme'; mode: 'dark' | 'light' };
+  | { type: 'theme'; mode: 'dark' | 'light' }
+  | { type: 'logout' };
 
 /** Messages sent from Native to WebView (web) */
 export type NativeToWebMessage =
