@@ -121,10 +121,15 @@ platform :ios do
     )
 
     # Upload dSYMs for Firebase Crashlytics symbolication
-    upload_symbols_to_crashlytics(
-      dsym_path: lane_context[SharedValues::DSYM_OUTPUT_PATH],
-      gsp_path: "./ios/KodiqAcademy/GoogleService-Info.plist",
-    )
+    begin
+      upload_symbols_to_crashlytics(
+        dsym_path: lane_context[SharedValues::DSYM_OUTPUT_PATH],
+        gsp_path: "./ios/KodiqAcademy/GoogleService-Info.plist",
+        binary_path: "./ios/Pods/FirebaseCrashlytics/upload-symbols",
+      )
+    rescue => e
+      UI.important("dSYM upload failed (non-blocking): #{e.message}")
+    end
   end
 
   # --- Release ---
