@@ -41,43 +41,56 @@ export function RegisterScreen({ onNavigate }: RegisterScreenProps) {
     if (!fullName.trim() || !email.trim() || !password) return;
     setLoading(true);
     setError(null);
-    const result = await signUpWithEmail(email.trim(), password, fullName.trim());
-    if (result.error) {
-      setError(translateError(result.error));
-    } else if (result.success) {
-      onNavigate('email-sent');
+    try {
+      const result = await signUpWithEmail(email.trim(), password, fullName.trim());
+      if (result.error) {
+        setError(translateError(result.error));
+      } else if (result.success) {
+        onNavigate('email-sent');
+      }
+    } catch {
+      setError('Ошибка соединения. Проверьте интернет.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [fullName, email, password, signUpWithEmail, onNavigate]);
 
   const handleGoogleOAuth = useCallback(async () => {
     setLoading(true);
     setLoadingProvider('google');
     setError(null);
-    const result = await signInWithGoogle();
-    if (result.error) {
-      setError(translateError(result.error));
+    try {
+      const result = await signInWithGoogle();
+      if (result.error) {
+        setError(translateError(result.error));
+      }
+    } catch {
+      setError('Ошибка входа через Google');
+    } finally {
+      setLoading(false);
+      setLoadingProvider(null);
     }
-    setLoading(false);
-    setLoadingProvider(null);
   }, []);
 
   const handleGitHubOAuth = useCallback(async () => {
     setLoading(true);
     setLoadingProvider('github');
     setError(null);
-    const result = await signInWithOAuth('github');
-    if (result.error) {
-      setError(translateError(result.error));
+    try {
+      const result = await signInWithOAuth('github');
+      if (result.error) {
+        setError(translateError(result.error));
+        return;
+      }
+      if (result.url) {
+        await Linking.openURL(result.url);
+      }
+    } catch {
+      setError('Ошибка входа через GitHub');
+    } finally {
       setLoading(false);
       setLoadingProvider(null);
-      return;
     }
-    if (result.url) {
-      await Linking.openURL(result.url);
-    }
-    setLoading(false);
-    setLoadingProvider(null);
   }, [signInWithOAuth]);
 
   return (
