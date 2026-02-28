@@ -42,7 +42,7 @@ platform :ios do
     app = Spaceship::ConnectAPI::App.find("ai.kodiq")
     UI.user_error!("App ai.kodiq not found") unless app
 
-    # Create or update beta app localization
+    # Check beta app localizations
     localizations = app.get_beta_app_localizations
     if localizations.empty?
       Spaceship::ConnectAPI.post_beta_app_localizations(
@@ -55,15 +55,7 @@ platform :ios do
       )
       UI.success("Created beta app localization (ru)")
     else
-      loc = localizations.first
-      Spaceship::ConnectAPI.patch_beta_app_localizations(
-        beta_app_localization_id: loc.id,
-        attributes: {
-          description: "Kodiq Academy — образовательная платформа для обучения программированию и IT-навыкам.",
-          feedbackEmail: "app@kodiq.ai",
-        },
-      )
-      UI.success("Updated beta app localization")
+      UI.success("Beta app localization already exists (#{localizations.first.locale})")
     end
 
     # List all beta groups
