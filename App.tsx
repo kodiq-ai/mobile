@@ -1,11 +1,12 @@
 import messaging from '@react-native-firebase/messaging';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Linking, StatusBar } from 'react-native';
+import { Animated, Linking, StatusBar, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider } from './src/auth/AuthContext';
 import { supabase } from './src/auth/supabase';
 import { useAuth } from './src/auth/useAuth';
+import { AnimatedScreen } from './src/components/AnimatedScreen';
 import { COLORS } from './src/config';
 import { EmailSentScreen } from './src/screens/EmailSentScreen';
 import { ForgotPasswordScreen } from './src/screens/ForgotPasswordScreen';
@@ -138,9 +139,27 @@ function AppContent() {
     setAuthScreen(screen);
   }, []);
 
-  // Loading: splash or auth restoring
-  if (showSplash || isLoading) {
-    return <SplashScreen />;
+  // Splash fade-out animation
+  const splashOpacity = useRef(new Animated.Value(1)).current;
+  const [splashVisible, setSplashVisible] = useState(true);
+
+  useEffect(() => {
+    if (!showSplash && !isLoading && splashVisible) {
+      Animated.timing(splashOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => setSplashVisible(false));
+    }
+  }, [showSplash, isLoading, splashVisible, splashOpacity]);
+
+  // Show splash with fade-out
+  if (splashVisible) {
+    return (
+      <Animated.View style={[appStyles.fill, { opacity: splashOpacity }]}>
+        <SplashScreen />
+      </Animated.View>
+    );
   }
 
   // Offline on cold start (no previous WebView cache)
@@ -148,29 +167,41 @@ function AppContent() {
     return <OfflineScreen onRetry={handleRetry} />;
   }
 
-  // Not authenticated → auth screens
+  // Not authenticated → auth screens with transition
   if (!session) {
-    switch (authScreen) {
-      case 'register':
-        return <RegisterScreen onNavigate={handleAuthNavigate} />;
-      case 'forgot':
-        return <ForgotPasswordScreen onNavigate={handleAuthNavigate} />;
-      case 'email-sent':
-        return <EmailSentScreen onNavigate={handleAuthNavigate} />;
-      default:
-        return <LoginScreen onNavigate={handleAuthNavigate} />;
-    }
+    const screen = (() => {
+      switch (authScreen) {
+        case 'register':
+          return <RegisterScreen onNavigate={handleAuthNavigate} />;
+        case 'forgot':
+          return <ForgotPasswordScreen onNavigate={handleAuthNavigate} />;
+        case 'email-sent':
+          return <EmailSentScreen onNavigate={handleAuthNavigate} />;
+        default:
+          return <LoginScreen onNavigate={handleAuthNavigate} />;
+      }
+    })();
+
+    return <AnimatedScreen screenKey={authScreen}>{screen}</AnimatedScreen>;
   }
 
   // Authenticated → WebView with session injection
   return (
-    <WebViewScreen
-      isOffline={isOffline}
-      deepLinkUrl={deepLinkUrl}
-      session={session}
-    />
+    <AnimatedScreen screenKey="webview">
+      <WebViewScreen
+        isOffline={isOffline}
+        deepLinkUrl={deepLinkUrl}
+        session={session}
+      />
+    </AnimatedScreen>
   );
 }
+
+const appStyles = StyleSheet.create({
+  fill: {
+    flex: 1,
+  },
+});
 
 export default function App() {
   return (

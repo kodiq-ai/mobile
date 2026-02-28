@@ -1,19 +1,39 @@
-import React from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Platform, StyleSheet } from 'react-native';
 
 import { COLORS } from '../config';
 
+const FONT_MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+
 export function SplashScreen() {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.92)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scale, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [opacity, scale]);
+
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        {/* Logo text — matches web: font-mono, cyan accent */}
-        <Text style={styles.logo}>kodiq</Text>
-        <View style={styles.divider} />
-        <Text style={styles.subtitle}>Academy</Text>
-      </View>
-      <Text style={styles.tagline}>AI Solo Founder Program</Text>
-    </View>
+    <Animated.View style={[styles.container, { opacity }]}>
+      <Animated.View style={[styles.content, { transform: [{ scale }] }]}>
+        <Animated.Text style={styles.logo}>kodiq</Animated.Text>
+        <Animated.View style={styles.divider} />
+        <Animated.Text style={styles.subtitle}>Academy</Animated.Text>
+      </Animated.View>
+      <Animated.Text style={styles.tagline}>AI Solo Founder Program</Animated.Text>
+    </Animated.View>
   );
 }
 
@@ -30,7 +50,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   logo: {
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontFamily: FONT_MONO,
     fontSize: 32,
     fontWeight: '700',
     color: COLORS.text,
@@ -42,14 +62,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.border,
   },
   subtitle: {
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontFamily: FONT_MONO,
     fontSize: 20,
     fontWeight: '700',
     color: COLORS.accent,
     letterSpacing: 0.5,
   },
   tagline: {
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontFamily: FONT_MONO,
     fontSize: 11,
     color: COLORS.textMuted,
     letterSpacing: 1,

@@ -33,6 +33,7 @@ export function RegisterScreen({ onNavigate }: RegisterScreenProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const emailRef = useRef<TextInput>(null);
   const passwordRef = useRef<TextInput>(null);
 
@@ -51,27 +52,32 @@ export function RegisterScreen({ onNavigate }: RegisterScreenProps) {
 
   const handleGoogleOAuth = useCallback(async () => {
     setLoading(true);
+    setLoadingProvider('google');
     setError(null);
     const result = await signInWithGoogle();
     if (result.error) {
       setError(translateError(result.error));
     }
     setLoading(false);
+    setLoadingProvider(null);
   }, []);
 
   const handleGitHubOAuth = useCallback(async () => {
     setLoading(true);
+    setLoadingProvider('github');
     setError(null);
     const result = await signInWithOAuth('github');
     if (result.error) {
       setError(translateError(result.error));
       setLoading(false);
+      setLoadingProvider(null);
       return;
     }
     if (result.url) {
       await Linking.openURL(result.url);
     }
     setLoading(false);
+    setLoadingProvider(null);
   }, [signInWithOAuth]);
 
   return (
@@ -87,12 +93,14 @@ export function RegisterScreen({ onNavigate }: RegisterScreenProps) {
           icon={<GitHubIcon />}
           onPress={handleGitHubOAuth}
           disabled={loading}
+          loading={loadingProvider === 'github'}
         />
         <OAuthButton
           label="Продолжить с Google"
           icon={<GoogleIcon />}
           onPress={handleGoogleOAuth}
           disabled={loading}
+          loading={loadingProvider === 'google'}
         />
       </View>
 
