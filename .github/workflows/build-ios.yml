@@ -3,13 +3,26 @@ name: Build iOS
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
+    tags: ['v*']
   workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Version tag (e.g. v1.0.0). Leave empty for dev build.'
+        required: false
+        type: string
+
+# Required secrets:
+#   APPSTORE_CONNECT_API_KEY_ID    — App Store Connect API key ID
+#   APPSTORE_CONNECT_ISSUER_ID     — API issuer ID
+#   APPSTORE_CONNECT_API_KEY       — .p8 key content (base64)
+#   APPLE_TEAM_ID                  — Apple Developer Team ID
+#   MATCH_DEPLOY_KEY               — SSH key for kodiq-mobile-certs repo
+#   MATCH_PASSWORD                 — Encryption password for match
+#   GOOGLE_SERVICE_INFO_PLIST      — GoogleService-Info.plist (base64)
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 45
 
     steps:
@@ -24,44 +37,49 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - name: Install dependencies
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Cache CocoaPods
-        uses: actions/cache@v4
-        with:
-          path: ios/Pods
-          key: pods-${{ hashFiles('ios/Podfile.lock') }}
-          restore-keys: pods-
+      - name: Set up SSH for Match cert repo
+        env:
+          MATCH_DEPLOY_KEY: ${{ secrets.MATCH_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$MATCH_DEPLOY_KEY" > ~/.ssh/match_key
+          chmod 600 ~/.ssh/match_key
+          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+          cat >> ~/.ssh/config << 'SSHEOF'
+          Host github.com
+            IdentityFile ~/.ssh/match_key
+            StrictHostKeyChecking no
+          SSHEOF
 
-      - name: Install CocoaPods
-        working-directory: ios
-        run: pod install
-
-      # Firebase config decoded from base64 secret
       - name: Decode GoogleService-Info.plist
         env:
           GOOGLE_SERVICE_INFO_B64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
         run: echo "$GOOGLE_SERVICE_INFO_B64" | base64 -d > ios/KodiqAcademy/GoogleService-Info.plist
 
-      - uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: 3.3
-          bundler-cache: true
+      - name: Extract version
+        id: version
+        run: |
+          TAG="${{ inputs.version_tag }}"
+          if [[ "$TAG" == v* ]]; then
+            VERSION="${TAG#v}"
+            echo "name=${VERSION}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=1.0.0" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Build with Fastlane
+      - name: Build and upload to TestFlight
         env:
+          APPSTORE_CONNECT_API_KEY_ID: ${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}
+          APPSTORE_CONNECT_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          APPSTORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APPSTORE_CONNECT_API_KEY }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
-          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
-          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-          APP_STORE_CONNECT_API_KEY: ${{ secrets.ASC_KEY }}
-        run: bundle exec fastlane beta
-
-      - name: Upload IPA
-        uses: actions/upload-artifact@v4
-        if: success()
-        with:
-          name: kodiq-academy-ios-${{ github.sha }}
-          path: ios/build/*.ipa
-          retention-days: 30
+          BUILD_VERSION: ${{ steps.version.outputs.name }}
+        run: bundle exec fastlane ios beta

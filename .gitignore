@@ -32,6 +32,9 @@ android/local.properties
 android/app/google-services.json
 ios/KodiqAcademy/GoogleService-Info.plist
 
+# Android signing
+android/app/upload-keystore.jks
+
 # IDE
 .idea/
 .vscode/

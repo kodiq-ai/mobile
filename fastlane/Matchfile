@@ -1,0 +1,6 @@
+git_url "git@github.com:artemboev7-web/kodiq-mobile-certs.git"
+storage_mode "git"
+
+type "appstore"
+app_identifier "ai.kodiq"
+team_id "JRJGS4U2DJ"
