@@ -119,6 +119,12 @@ platform :ios do
       skip_waiting_for_build_processing: true,
       changelog: ENV["BUILD_CHANGELOG"] || "New build",
     )
+
+    # Upload dSYMs for Firebase Crashlytics symbolication
+    upload_symbols_to_crashlytics(
+      dsym_path: lane_context[SharedValues::DSYM_OUTPUT_PATH],
+      gsp_path: "./ios/KodiqAcademy/GoogleService-Info.plist",
+    )
   end
 
   # --- Release ---
