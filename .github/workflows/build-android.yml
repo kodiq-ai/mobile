@@ -50,19 +50,26 @@ jobs:
           key: gradle-${{ hashFiles('android/gradle/wrapper/gradle-wrapper.properties', 'android/app/build.gradle') }}
           restore-keys: gradle-
 
-      - name: Build Release APK
+      - name: Build Release APK + AAB
         working-directory: android
         env:
           ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
           ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
           ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
-        run: ./gradlew assembleRelease --no-daemon
+        run: ./gradlew assembleRelease bundleRelease --no-daemon
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: kodiq-academy-${{ github.sha }}
+          name: kodiq-academy-apk-${{ github.sha }}
           path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kodiq-academy-aab-${{ github.sha }}
+          path: android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 30
 
       - name: Upload to Google Play (internal testing)
@@ -71,5 +78,5 @@ jobs:
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}
           packageName: ai.kodiq
-          releaseFiles: android/app/build/outputs/apk/release/app-release.apk
+          releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
           track: internal
