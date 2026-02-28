@@ -28,6 +28,10 @@ export const COLORS = {
  */
 export const GOOGLE_WEB_CLIENT_ID = '883916650071-REPLACE_WITH_WEB_CLIENT_ID.apps.googleusercontent.com';
 
+/** Sentry — Error Monitoring */
+export const SENTRY_DSN =
+  'https://51a81ca4a92130100b5ed88f706d3da8@o4510404075126784.ingest.de.sentry.io/4510966071820368';
+
 /** PostHog analytics */
 export const POSTHOG_API_KEY = 'phc_JmYTaumxd37YjQjPFJtjUEj9MiYkG9Fg9uQ2HgNbACf';
 export const POSTHOG_HOST = 'https://us.i.posthog.com';
