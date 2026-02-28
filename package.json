@@ -19,6 +19,7 @@
     "@react-native-firebase/messaging": "^23.8.6",
     "@react-native-google-signin/google-signin": "^16.1.1",
     "@supabase/supabase-js": "^2.95.3",
+    "posthog-react-native": "^4.36.1",
     "prop-types": "^15.8.1",
     "react": "19.2.3",
     "react-native": "0.84.1",
