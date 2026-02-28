@@ -55,6 +55,15 @@ platform :ios do
       xcodeproj: "./ios/KodiqAcademy.xcodeproj",
     )
 
+    update_code_signing_settings(
+      use_automatic_signing: false,
+      path: "./ios/KodiqAcademy.xcodeproj",
+      team_id: ENV["APPLE_TEAM_ID"] || "JRJGS4U2DJ",
+      bundle_identifier: "ai.kodiq",
+      code_sign_identity: "Apple Distribution",
+      profile_name: "match AppStore ai.kodiq",
+    )
+
     build_app(
       workspace: "./ios/KodiqAcademy.xcworkspace",
       scheme: "KodiqAcademy",
