@@ -1,6 +1,7 @@
 import messaging from '@react-native-firebase/messaging';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Linking, StatusBar, StyleSheet } from 'react-native';
+import { PostHogProvider, usePostHog } from 'posthog-react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider } from './src/auth/AuthContext';
@@ -8,7 +9,7 @@ import { supabase } from './src/auth/supabase';
 import { useAuth } from './src/auth/useAuth';
 import { AnimatedScreen } from './src/components/AnimatedScreen';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
-import { COLORS } from './src/config';
+import { COLORS, POSTHOG_API_KEY, POSTHOG_HOST } from './src/config';
 import {
   clearAnalyticsUser,
   initAnalytics,
@@ -29,6 +30,7 @@ type AuthScreen = 'login' | 'register' | 'forgot' | 'email-sent';
 
 function AppContent() {
   const { session, isLoading } = useAuth();
+  const posthog = usePostHog();
   const accessTokenRef = useRef<string | null>(null);
   const [connectivityReady, setConnectivityReady] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
@@ -42,14 +44,19 @@ function AppContent() {
     void initAnalytics();
   }, []);
 
-  // Set/clear analytics user when session changes
+  // Set/clear analytics user when session changes (Firebase + PostHog)
   useEffect(() => {
     if (session?.user?.id) {
       void setAnalyticsUser(session.user.id);
+      posthog.identify(session.user.id, {
+        ...(session.user.email ? { email: session.user.email } : {}),
+        source: 'academy-mobile',
+      });
     } else {
       void clearAnalyticsUser();
+      posthog.reset();
     }
-  }, [session?.user?.id]);
+  }, [session?.user?.id, posthog]);
 
   // Splash timer + connectivity check
   useEffect(() => {
@@ -159,7 +166,8 @@ function AppContent() {
   const handleAuthNavigate = useCallback((screen: AuthScreen) => {
     setAuthScreen(screen);
     void trackScreen(screen);
-  }, []);
+    posthog.screen(screen);
+  }, [posthog]);
 
   // Splash fade-out animation
   const splashOpacity = useRef(new Animated.Value(1)).current;
@@ -228,16 +236,32 @@ const appStyles = StyleSheet.create({
 export default function App() {
   return (
     <ErrorBoundary>
-      <SafeAreaProvider>
-        <StatusBar
-          barStyle="light-content"
-          backgroundColor={COLORS.background}
-          translucent={false}
-        />
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
-      </SafeAreaProvider>
+      <PostHogProvider
+        apiKey={POSTHOG_API_KEY}
+        options={{
+          host: POSTHOG_HOST,
+          enableSessionReplay: true,
+          sessionReplayConfig: {
+            maskAllTextInputs: true,
+            maskAllImages: false,
+          },
+        }}
+        autocapture={{
+          captureTouches: true,
+          captureScreens: true,
+        }}
+      >
+        <SafeAreaProvider>
+          <StatusBar
+            barStyle="light-content"
+            backgroundColor={COLORS.background}
+            translucent={false}
+          />
+          <AuthProvider>
+            <AppContent />
+          </AuthProvider>
+        </SafeAreaProvider>
+      </PostHogProvider>
     </ErrorBoundary>
   );
 }
