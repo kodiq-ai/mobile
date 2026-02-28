@@ -40,11 +40,16 @@ export function LoginScreen({ onNavigate }: LoginScreenProps) {
     if (!email.trim() || !password) return;
     setLoading(true);
     setError(null);
-    const result = await signInWithEmail(email.trim(), password);
-    if (result.error) {
-      setError(translateError(result.error));
+    try {
+      const result = await signInWithEmail(email.trim(), password);
+      if (result.error) {
+        setError(translateError(result.error));
+      }
+    } catch {
+      setError('Ошибка соединения. Проверьте интернет.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [email, password, signInWithEmail]);
 
   const handleGoogleLogin = useCallback(async () => {

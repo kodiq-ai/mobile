@@ -10,6 +10,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../config';
+import { KodiqLogo } from './icons/KodiqLogo';
 
 interface AuthLayoutProps {
   title: string;
@@ -43,8 +44,10 @@ export function AuthLayout({
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
-            {/* Logo */}
-            <Text style={styles.logo}>kodiq</Text>
+            {/* Logo icon */}
+            <View style={styles.logoContainer}>
+              <KodiqLogo size={56} />
+            </View>
 
             {/* Title with optional cyan highlight */}
             <Text style={styles.title}>
@@ -81,12 +84,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 32,
   },
-  logo: {
-    fontFamily: FONT_MONO,
-    fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.text,
-    letterSpacing: -0.5,
+  logoContainer: {
     marginBottom: 24,
   },
   title: {

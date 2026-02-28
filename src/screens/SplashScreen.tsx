@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Platform, StyleSheet } from 'react-native';
+import { Animated, Platform, StyleSheet, View } from 'react-native';
 
+import { KodiqLogo } from '../components/icons/KodiqLogo';
 import { COLORS } from '../config';
 
 const FONT_MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
@@ -28,9 +29,14 @@ export function SplashScreen() {
   return (
     <Animated.View style={[styles.container, { opacity }]}>
       <Animated.View style={[styles.content, { transform: [{ scale }] }]}>
-        <Animated.Text style={styles.logo}>kodiq</Animated.Text>
-        <Animated.View style={styles.divider} />
-        <Animated.Text style={styles.subtitle}>Academy</Animated.Text>
+        <View style={styles.logoIcon}>
+          <KodiqLogo size={80} />
+        </View>
+        <View style={styles.textRow}>
+          <Animated.Text style={styles.logo}>kodiq</Animated.Text>
+          <Animated.View style={styles.divider} />
+          <Animated.Text style={styles.subtitle}>Academy</Animated.Text>
+        </View>
       </Animated.View>
       <Animated.Text style={styles.tagline}>AI Solo Founder Program</Animated.Text>
     </Animated.View>
@@ -45,6 +51,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   content: {
+    alignItems: 'center',
+  },
+  logoIcon: {
+    marginBottom: 20,
+  },
+  textRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
