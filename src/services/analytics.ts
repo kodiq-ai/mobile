@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react-native';
 import analytics from '@react-native-firebase/analytics';
 import crashlytics from '@react-native-firebase/crashlytics';
 
@@ -7,8 +8,9 @@ export async function initAnalytics(): Promise<void> {
   await analytics().setAnalyticsCollectionEnabled(true);
 }
 
-/** Set user ID for both Analytics and Crashlytics */
+/** Set user ID for Analytics, Crashlytics, and Sentry */
 export async function setAnalyticsUser(userId: string): Promise<void> {
+  Sentry.setUser({ id: userId });
   await Promise.all([
     analytics().setUserId(userId),
     crashlytics().setUserId(userId),
@@ -17,6 +19,7 @@ export async function setAnalyticsUser(userId: string): Promise<void> {
 
 /** Clear user on logout */
 export async function clearAnalyticsUser(): Promise<void> {
+  Sentry.setUser(null);
   await Promise.all([
     analytics().setUserId(null),
     crashlytics().setUserId(''),
