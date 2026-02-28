@@ -7,6 +7,7 @@ import { OfflineScreen } from './src/screens/OfflineScreen';
 import { SplashScreen } from './src/screens/SplashScreen';
 import { WebViewScreen } from './src/screens/WebViewScreen';
 import { connectivityService } from './src/services/connectivity';
+import { registerPushToken, onTokenRefresh } from './src/services/push';
 
 type AppState = 'splash' | 'ready' | 'offline';
 
@@ -38,6 +39,14 @@ export default function App() {
       unsubscribe();
     };
   }, [wasReady, state]);
+
+  // Register push token once app is ready
+  useEffect(() => {
+    if (state !== 'ready') return;
+    void registerPushToken();
+    const unsubscribeTokenRefresh = onTokenRefresh();
+    return () => unsubscribeTokenRefresh();
+  }, [state]);
 
   const handleRetry = useCallback(() => {
     connectivityService.isConnected().then((online) => {
