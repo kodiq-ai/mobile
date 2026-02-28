@@ -116,9 +116,7 @@ platform :ios do
     )
 
     upload_to_testflight(
-      skip_waiting_for_build_processing: false,
-      distribute_external: false,
-      groups: ["kodiq"],
+      skip_waiting_for_build_processing: true,
       changelog: ENV["BUILD_CHANGELOG"] || "New build",
     )
   end
