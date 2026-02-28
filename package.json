@@ -10,10 +10,12 @@
     "pod-install": "cd ios && pod install && cd .."
   },
   "dependencies": {
+    "@invertase/react-native-apple-authentication": "^2.5.1",
     "@react-native-async-storage/async-storage": "^3.0.1",
     "@react-native-community/netinfo": "^11.4.0",
     "@react-native-firebase/app": "^23.8.6",
     "@react-native-firebase/messaging": "^23.8.6",
+    "@react-native-google-signin/google-signin": "^16.1.1",
     "@supabase/supabase-js": "^2.95.3",
     "react": "19.2.3",
     "react-native": "0.84.1",

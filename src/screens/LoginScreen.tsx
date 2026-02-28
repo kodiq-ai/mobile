@@ -1,6 +1,14 @@
-import React, { useCallback, useState } from 'react';
-import { Linking, Platform, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
+import {
+  Linking,
+  Platform,
+  StyleSheet,
+  Text,
+  type TextInput,
+  View,
+} from 'react-native';
 
+import { signInWithApple, signInWithGoogle } from '../auth/oauth';
 import { useAuth } from '../auth/useAuth';
 import { AuthButton } from '../components/AuthButton';
 import { AuthDivider } from '../components/AuthDivider';
@@ -11,6 +19,7 @@ import { AppleIcon } from '../components/icons/AppleIcon';
 import { GitHubIcon } from '../components/icons/GitHubIcon';
 import { GoogleIcon } from '../components/icons/GoogleIcon';
 import { COLORS } from '../config';
+import { translateError } from '../utils/errors';
 
 interface LoginScreenProps {
   onNavigate: (screen: 'register' | 'forgot') => void;
@@ -24,6 +33,7 @@ export function LoginScreen({ onNavigate }: LoginScreenProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const passwordRef = useRef<TextInput>(null);
 
   const handleEmailLogin = useCallback(async () => {
     if (!email.trim() || !password) return;
@@ -31,17 +41,37 @@ export function LoginScreen({ onNavigate }: LoginScreenProps) {
     setError(null);
     const result = await signInWithEmail(email.trim(), password);
     if (result.error) {
-      setError(result.error);
+      setError(translateError(result.error));
     }
     setLoading(false);
   }, [email, password, signInWithEmail]);
+
+  const handleGoogleLogin = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const result = await signInWithGoogle();
+    if (result.error) {
+      setError(translateError(result.error));
+    }
+    setLoading(false);
+  }, []);
+
+  const handleAppleLogin = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const result = await signInWithApple();
+    if (result.error) {
+      setError(translateError(result.error));
+    }
+    setLoading(false);
+  }, []);
 
   const handleGitHubLogin = useCallback(async () => {
     setLoading(true);
     setError(null);
     const result = await signInWithOAuth('github');
     if (result.error) {
-      setError(result.error);
+      setError(translateError(result.error));
       setLoading(false);
       return;
     }
@@ -64,18 +94,14 @@ export function LoginScreen({ onNavigate }: LoginScreenProps) {
         <OAuthButton
           label="Продолжить с Google"
           icon={<GoogleIcon />}
-          onPress={() => {
-            // Phase 2: Google Sign-In native SDK
-          }}
+          onPress={handleGoogleLogin}
           disabled={loading}
         />
         {Platform.OS === 'ios' && (
           <OAuthButton
             label="Продолжить с Apple"
             icon={<AppleIcon />}
-            onPress={() => {
-              // Phase 2: Apple Sign-In native SDK
-            }}
+            onPress={handleAppleLogin}
             disabled={loading}
           />
         )}
@@ -92,14 +118,20 @@ export function LoginScreen({ onNavigate }: LoginScreenProps) {
           keyboardType="email-address"
           autoComplete="email"
           textContentType="emailAddress"
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+          blurOnSubmit={false}
         />
         <AuthInput
+          ref={passwordRef}
           placeholder="Пароль"
           value={password}
           onChangeText={setPassword}
           isPassword
           autoComplete="password"
           textContentType="password"
+          returnKeyType="go"
+          onSubmitEditing={handleEmailLogin}
         />
 
         {error && <Text style={styles.error}>{error}</Text>}

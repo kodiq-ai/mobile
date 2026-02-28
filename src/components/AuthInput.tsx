@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { forwardRef, useState } from 'react';
 import {
   Platform,
   Pressable,
@@ -18,32 +18,37 @@ interface AuthInputProps extends TextInputProps {
 
 const FONT_MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
 
-export function AuthInput({ isPassword, style, ...props }: AuthInputProps) {
-  const [showPassword, setShowPassword] = useState(false);
+export const AuthInput = forwardRef<TextInput, AuthInputProps>(
+  function AuthInput({ isPassword, style, ...props }, ref) {
+    const [showPassword, setShowPassword] = useState(false);
 
-  return (
-    <View style={styles.wrapper}>
-      <TextInput
-        style={[styles.input, isPassword && styles.inputWithToggle, style]}
-        placeholderTextColor={COLORS.textMuted}
-        selectionColor={COLORS.accent}
-        secureTextEntry={isPassword && !showPassword}
-        autoCapitalize="none"
-        autoCorrect={false}
-        {...props}
-      />
-      {isPassword && (
-        <Pressable
-          style={styles.eyeButton}
-          onPress={() => setShowPassword((v) => !v)}
-          hitSlop={8}
-        >
-          <Text style={styles.eyeText}>{showPassword ? 'Скрыть' : 'Показать'}</Text>
-        </Pressable>
-      )}
-    </View>
-  );
-}
+    return (
+      <View style={styles.wrapper}>
+        <TextInput
+          ref={ref}
+          style={[styles.input, isPassword && styles.inputWithToggle, style]}
+          placeholderTextColor={COLORS.textMuted}
+          selectionColor={COLORS.accent}
+          secureTextEntry={isPassword && !showPassword}
+          autoCapitalize="none"
+          autoCorrect={false}
+          {...props}
+        />
+        {isPassword && (
+          <Pressable
+            style={styles.eyeButton}
+            onPress={() => setShowPassword((v) => !v)}
+            hitSlop={8}
+          >
+            <Text style={styles.eyeText}>
+              {showPassword ? 'Скрыть' : 'Показать'}
+            </Text>
+          </Pressable>
+        )}
+      </View>
+    );
+  },
+);
 
 const styles = StyleSheet.create({
   wrapper: {

@@ -6,6 +6,7 @@ import { AuthButton } from '../components/AuthButton';
 import { AuthInput } from '../components/AuthInput';
 import { AuthLayout } from '../components/AuthLayout';
 import { COLORS } from '../config';
+import { translateError } from '../utils/errors';
 
 interface ForgotPasswordScreenProps {
   onNavigate: (screen: 'login' | 'email-sent') => void;
@@ -25,7 +26,7 @@ export function ForgotPasswordScreen({ onNavigate }: ForgotPasswordScreenProps) 
     setError(null);
     const result = await resetPassword(email.trim());
     if (result.error) {
-      setError(result.error);
+      setError(translateError(result.error));
     } else {
       onNavigate('email-sent');
     }
@@ -41,6 +42,8 @@ export function ForgotPasswordScreen({ onNavigate }: ForgotPasswordScreenProps) 
         keyboardType="email-address"
         autoComplete="email"
         textContentType="emailAddress"
+        returnKeyType="go"
+        onSubmitEditing={handleReset}
       />
 
       {error && <Text style={styles.error}>{error}</Text>}
