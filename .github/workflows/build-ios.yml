@@ -22,7 +22,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-26
+    runs-on: macos-15
     timeout-minutes: 45
 
     steps:
@@ -39,6 +39,9 @@ jobs:
         with:
           ruby-version: '3.3'
           bundler-cache: true
+
+      - name: Select Xcode 16.2
+        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
 
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
@@ -82,3 +85,11 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           BUILD_VERSION: ${{ steps.version.outputs.name }}
         run: bundle exec fastlane ios beta
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-logs
+          path: ~/Library/Logs/gym/
+          retention-days: 7
