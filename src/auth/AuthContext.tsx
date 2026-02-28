@@ -7,6 +7,7 @@ import React, {
   useState,
 } from 'react';
 
+import { unregisterPushToken } from '../services/push';
 import { supabase } from './supabase';
 
 interface AuthContextValue {
@@ -85,6 +86,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const handleSignOut = useCallback(async () => {
+    // Unregister push token before clearing session (needs auth)
+    const currentSession = await supabase.auth.getSession();
+    const token = currentSession.data.session?.access_token;
+    await unregisterPushToken(token);
+
     await supabase.auth.signOut();
     setSession(null);
   }, []);
