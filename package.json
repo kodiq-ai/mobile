@@ -1,0 +1,34 @@
+{
+  "name": "kodiq-academy",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "android": "react-native run-android",
+    "ios": "react-native run-ios",
+    "start": "react-native start",
+    "clean": "cd android && ./gradlew clean && cd ..",
+    "pod-install": "cd ios && pod install && cd .."
+  },
+  "dependencies": {
+    "react": "19.0.0",
+    "react-native": "0.79.2",
+    "react-native-webview": "^13.16.0",
+    "react-native-safe-area-context": "^5.5.2",
+    "@react-native-community/netinfo": "^11.4.0",
+    "@react-native-async-storage/async-storage": "^3.0.1"
+  },
+  "devDependencies": {
+    "@react-native-community/cli": "18.0.0",
+    "@react-native-community/cli-platform-android": "18.0.0",
+    "@react-native-community/cli-platform-ios": "18.0.0",
+    "@react-native/babel-preset": "0.79.2",
+    "@react-native/metro-config": "0.79.2",
+    "@react-native/typescript-config": "0.79.2",
+    "@types/react": "^19.0.0",
+    "typescript": "~5.7.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "pnpm@10.4.1"
+}

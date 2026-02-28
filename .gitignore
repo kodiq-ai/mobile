@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.pnp.*
+
+# iOS
+ios/Pods/
+ios/build/
+ios/*.xcworkspace/xcuserdata/
+*.pbxuser
+*.perspectivev3
+xcuserdata/
+*.xccheckout
+*.moved-aside
+DerivedData/
+
+# Android
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+*.apk
+*.aab
+
+# Metro
+.metro-health-check*
+
+# Bundle
+*.jsbundle
+*.jsbundle.map
+
+# Firebase (secrets)
+android/app/google-services.json
+ios/KodiqAcademy/GoogleService-Info.plist
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
