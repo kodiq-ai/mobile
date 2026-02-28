@@ -83,8 +83,10 @@ android {
         applicationId "ai.kodiq"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // Auto-increment: minutes since 2025-01-01 (unique, always increasing)
+        def epoch = (int)(((new Date().getTime() / 1000) - 1735689600) / 60)
+        versionCode System.getenv('VERSION_CODE') ? System.getenv('VERSION_CODE').toInteger() : epoch
+        versionName "1.0.0"
     }
     signingConfigs {
         debug {
