@@ -82,6 +82,8 @@ platform :ios do
       distribute_external: false,
       groups: ["Internal Testers"],
       changelog: ENV["BUILD_CHANGELOG"] || "New build",
+      beta_app_description: "Kodiq Academy — образовательная платформа",
+      beta_app_feedback_email: "app@kodiq.ai",
     )
   end
 
