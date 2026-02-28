@@ -1,10 +1,8 @@
 import type { Session } from '@supabase/supabase-js';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   BackHandler,
   Platform,
-  RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -92,7 +90,6 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session }: WebViewScreen
   const webViewRef = useRef<WebView>(null);
   const canGoBackRef = useRef(false);
   const insets = useSafeAreaInsets();
-  const [refreshing, setRefreshing] = useState(false);
   const { signOut } = useAuth();
 
   // Re-inject session when token refreshes
@@ -173,12 +170,6 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session }: WebViewScreen
     [],
   );
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    webViewRef.current?.reload();
-    setTimeout(() => setRefreshing(false), 1000);
-  }, []);
-
   const injectedJS = buildSessionInjectionJS(session);
 
   return (
@@ -190,46 +181,34 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session }: WebViewScreen
         </View>
       )}
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={COLORS.accent}
-            colors={[COLORS.accent]}
-          />
-        }
-      >
-        <WebView
-          ref={webViewRef}
-          source={{ uri: ACADEMY_URL }}
-          style={styles.webview}
-          injectedJavaScriptBeforeContentLoaded={injectedJS}
-          injectedJavaScript={INJECTED_JS_NO_SESSION}
-          onNavigationStateChange={handleNavigationStateChange}
-          onMessage={handleMessage}
-          onShouldStartLoadWithRequest={handleShouldStartLoad}
-          // Auth: cookies still shared for SSR compatibility
-          sharedCookiesEnabled
-          // Cache
-          cacheEnabled
-          cacheMode={isOffline ? 'LOAD_CACHE_ELSE_NETWORK' : 'LOAD_DEFAULT'}
-          // UI
-          allowsBackForwardNavigationGestures
-          pullToRefreshEnabled={Platform.OS === 'android'}
-          startInLoadingState
-          renderLoading={() => <View style={styles.loading} />}
-          // Security
-          javaScriptEnabled
-          domStorageEnabled
-          allowsInlineMediaPlayback
-          mediaPlaybackRequiresUserAction={false}
-          // Scroll
-          overScrollMode="never"
-          scrollEnabled
-        />
-      </ScrollView>
+      <WebView
+        ref={webViewRef}
+        source={{ uri: ACADEMY_URL }}
+        style={styles.webview}
+        injectedJavaScriptBeforeContentLoaded={injectedJS}
+        injectedJavaScript={INJECTED_JS_NO_SESSION}
+        onNavigationStateChange={handleNavigationStateChange}
+        onMessage={handleMessage}
+        onShouldStartLoadWithRequest={handleShouldStartLoad}
+        // Auth: cookies still shared for SSR compatibility
+        sharedCookiesEnabled
+        // Cache
+        cacheEnabled
+        cacheMode={isOffline ? 'LOAD_CACHE_ELSE_NETWORK' : 'LOAD_DEFAULT'}
+        // UI
+        allowsBackForwardNavigationGestures
+        pullToRefreshEnabled={Platform.OS === 'android'}
+        startInLoadingState
+        renderLoading={() => <View style={styles.loading} />}
+        // Security
+        javaScriptEnabled
+        domStorageEnabled
+        allowsInlineMediaPlayback
+        mediaPlaybackRequiresUserAction={false}
+        // Scroll
+        overScrollMode="never"
+        scrollEnabled
+      />
     </View>
   );
 }
@@ -249,9 +228,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#fbbf24',
     letterSpacing: 0.5,
-  },
-  scrollContent: {
-    flex: 1,
   },
   webview: {
     flex: 1,
