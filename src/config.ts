@@ -28,6 +28,10 @@ export const COLORS = {
  */
 export const GOOGLE_WEB_CLIENT_ID = '883916650071-REPLACE_WITH_WEB_CLIENT_ID.apps.googleusercontent.com';
 
+/** PostHog analytics */
+export const POSTHOG_API_KEY = 'phc_JmYTaumxd37YjQjPFJtjUEj9MiYkG9Fg9uQ2HgNbACf';
+export const POSTHOG_HOST = 'https://us.i.posthog.com';
+
 /** Supabase configuration */
 export const SUPABASE_URL = 'https://rbhhktfmgtjynoashwoe.supabase.co';
 export const SUPABASE_ANON_KEY =
