@@ -7,7 +7,14 @@ import { AuthProvider } from './src/auth/AuthContext';
 import { supabase } from './src/auth/supabase';
 import { useAuth } from './src/auth/useAuth';
 import { AnimatedScreen } from './src/components/AnimatedScreen';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { COLORS } from './src/config';
+import {
+  clearAnalyticsUser,
+  initAnalytics,
+  setAnalyticsUser,
+  trackScreen,
+} from './src/services/analytics';
 import { EmailSentScreen } from './src/screens/EmailSentScreen';
 import { ForgotPasswordScreen } from './src/screens/ForgotPasswordScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
@@ -29,6 +36,20 @@ function AppContent() {
   const [deepLinkUrl, setDeepLinkUrl] = useState<string | null>(null);
   const [authScreen, setAuthScreen] = useState<AuthScreen>('login');
   const [showSplash, setShowSplash] = useState(true);
+
+  // Initialize analytics on mount
+  useEffect(() => {
+    void initAnalytics();
+  }, []);
+
+  // Set/clear analytics user when session changes
+  useEffect(() => {
+    if (session?.user?.id) {
+      void setAnalyticsUser(session.user.id);
+    } else {
+      void clearAnalyticsUser();
+    }
+  }, [session?.user?.id]);
 
   // Splash timer + connectivity check
   useEffect(() => {
@@ -137,6 +158,7 @@ function AppContent() {
 
   const handleAuthNavigate = useCallback((screen: AuthScreen) => {
     setAuthScreen(screen);
+    void trackScreen(screen);
   }, []);
 
   // Splash fade-out animation
@@ -205,15 +227,17 @@ const appStyles = StyleSheet.create({
 
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor={COLORS.background}
-        translucent={false}
-      />
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <StatusBar
+          barStyle="light-content"
+          backgroundColor={COLORS.background}
+          translucent={false}
+        />
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }
