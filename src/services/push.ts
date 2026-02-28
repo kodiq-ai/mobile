@@ -80,11 +80,19 @@ export async function unregisterPushToken(accessToken?: string): Promise<void> {
 
 /**
  * Listen for token refreshes (FCM rotates tokens periodically).
+ * Accepts a getter function for access token to avoid stale closure.
  * Returns unsubscribe function.
  */
-export function onTokenRefresh(accessToken?: string): () => void {
+export function onTokenRefresh(
+  getAccessToken: (() => string | null) | string | undefined,
+): () => void {
   return messaging().onTokenRefresh(async (newToken) => {
     const oldToken = await AsyncStorage.getItem(STORAGE_KEY);
+
+    const accessToken =
+      typeof getAccessToken === 'function'
+        ? getAccessToken()
+        : getAccessToken;
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',

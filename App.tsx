@@ -1,5 +1,5 @@
 import messaging from '@react-native-firebase/messaging';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Linking, StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -21,6 +21,7 @@ type AuthScreen = 'login' | 'register' | 'forgot' | 'email-sent';
 
 function AppContent() {
   const { session, isLoading } = useAuth();
+  const accessTokenRef = useRef<string | null>(null);
   const [connectivityReady, setConnectivityReady] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [wasReady, setWasReady] = useState(false);
@@ -53,11 +54,16 @@ function AppContent() {
     };
   }, [wasReady]);
 
+  // Keep access token ref fresh for push service callbacks
+  useEffect(() => {
+    accessTokenRef.current = session?.access_token ?? null;
+  }, [session]);
+
   // Push token registration when authenticated
   useEffect(() => {
     if (!session || !connectivityReady || isOffline) return;
     void registerPushToken(session.access_token);
-    const unsubscribeTokenRefresh = onTokenRefresh(session.access_token);
+    const unsubscribeTokenRefresh = onTokenRefresh(() => accessTokenRef.current);
     return () => unsubscribeTokenRefresh();
   }, [session, connectivityReady, isOffline]);
 
