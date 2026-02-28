@@ -21,6 +21,13 @@ export const COLORS = {
   error: '#ef4444',
 } as const;
 
+/**
+ * Google Web Client ID from Google Cloud Console.
+ * Must match the client ID configured in Supabase Dashboard > Auth > Google Provider.
+ * Get it from: https://console.cloud.google.com/apis/credentials (Web application type)
+ */
+export const GOOGLE_WEB_CLIENT_ID = '883916650071-REPLACE_WITH_WEB_CLIENT_ID.apps.googleusercontent.com';
+
 /** Supabase configuration */
 export const SUPABASE_URL = 'https://rbhhktfmgtjynoashwoe.supabase.co';
 export const SUPABASE_ANON_KEY =

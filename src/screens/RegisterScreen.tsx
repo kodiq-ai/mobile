@@ -1,6 +1,14 @@
-import React, { useCallback, useState } from 'react';
-import { Linking, Platform, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
+import {
+  Linking,
+  Platform,
+  StyleSheet,
+  Text,
+  type TextInput,
+  View,
+} from 'react-native';
 
+import { signInWithGoogle } from '../auth/oauth';
 import { useAuth } from '../auth/useAuth';
 import { AuthButton } from '../components/AuthButton';
 import { AuthDivider } from '../components/AuthDivider';
@@ -10,6 +18,7 @@ import { OAuthButton } from '../components/OAuthButton';
 import { GitHubIcon } from '../components/icons/GitHubIcon';
 import { GoogleIcon } from '../components/icons/GoogleIcon';
 import { COLORS } from '../config';
+import { translateError } from '../utils/errors';
 
 interface RegisterScreenProps {
   onNavigate: (screen: 'login' | 'email-sent') => void;
@@ -24,6 +33,8 @@ export function RegisterScreen({ onNavigate }: RegisterScreenProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
 
   const handleRegister = useCallback(async () => {
     if (!fullName.trim() || !email.trim() || !password) return;
@@ -31,19 +42,29 @@ export function RegisterScreen({ onNavigate }: RegisterScreenProps) {
     setError(null);
     const result = await signUpWithEmail(email.trim(), password, fullName.trim());
     if (result.error) {
-      setError(result.error);
+      setError(translateError(result.error));
     } else if (result.success) {
       onNavigate('email-sent');
     }
     setLoading(false);
   }, [fullName, email, password, signUpWithEmail, onNavigate]);
 
+  const handleGoogleOAuth = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const result = await signInWithGoogle();
+    if (result.error) {
+      setError(translateError(result.error));
+    }
+    setLoading(false);
+  }, []);
+
   const handleGitHubOAuth = useCallback(async () => {
     setLoading(true);
     setError(null);
     const result = await signInWithOAuth('github');
     if (result.error) {
-      setError(result.error);
+      setError(translateError(result.error));
       setLoading(false);
       return;
     }
@@ -70,9 +91,7 @@ export function RegisterScreen({ onNavigate }: RegisterScreenProps) {
         <OAuthButton
           label="Продолжить с Google"
           icon={<GoogleIcon />}
-          onPress={() => {
-            // Phase 2: Google Sign-In
-          }}
+          onPress={handleGoogleOAuth}
           disabled={loading}
         />
       </View>
@@ -87,22 +106,32 @@ export function RegisterScreen({ onNavigate }: RegisterScreenProps) {
           onChangeText={setFullName}
           autoComplete="name"
           textContentType="name"
+          returnKeyType="next"
+          onSubmitEditing={() => emailRef.current?.focus()}
+          blurOnSubmit={false}
         />
         <AuthInput
+          ref={emailRef}
           placeholder="Email"
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
           autoComplete="email"
           textContentType="emailAddress"
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+          blurOnSubmit={false}
         />
         <AuthInput
+          ref={passwordRef}
           placeholder="Пароль (мин. 6 символов)"
           value={password}
           onChangeText={setPassword}
           isPassword
           autoComplete="new-password"
           textContentType="newPassword"
+          returnKeyType="go"
+          onSubmitEditing={handleRegister}
         />
 
         {error && <Text style={styles.error}>{error}</Text>}
