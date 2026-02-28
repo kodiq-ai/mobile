@@ -1,10 +1,11 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BackHandler,
   Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Text,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,26 +32,43 @@ const INJECTED_JS = `
   })();
 `;
 
-export function WebViewScreen() {
+interface WebViewScreenProps {
+  isOffline?: boolean;
+  deepLinkUrl?: string | null;
+}
+
+export function WebViewScreen({ isOffline, deepLinkUrl }: WebViewScreenProps) {
   const webViewRef = useRef<WebView>(null);
   const canGoBackRef = useRef(false);
   const insets = useSafeAreaInsets();
-  const [refreshing, setRefreshing] = React.useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Android back button → navigate back in WebView
-  React.useEffect(() => {
+  useEffect(() => {
     if (Platform.OS !== 'android') return;
 
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
       if (canGoBackRef.current && webViewRef.current) {
         webViewRef.current.goBack();
-        return true; // prevent app exit
+        return true;
       }
-      return false; // let system handle (exit app)
+      return false;
     });
 
     return () => handler.remove();
   }, []);
+
+  // Deep link: navigate WebView to specific URL
+  useEffect(() => {
+    if (deepLinkUrl && webViewRef.current) {
+      const fullUrl = deepLinkUrl.startsWith('http')
+        ? deepLinkUrl
+        : `https://kodiq.ai${deepLinkUrl}`;
+      webViewRef.current.injectJavaScript(
+        `window.location.href = ${JSON.stringify(fullUrl)}; true;`,
+      );
+    }
+  }, [deepLinkUrl]);
 
   const handleNavigationStateChange = useCallback(
     (navState: WebViewNavigation) => {
@@ -64,10 +82,8 @@ export function WebViewScreen() {
       const msg: WebToNativeMessage = JSON.parse(event.nativeEvent.data);
       switch (msg.type) {
         case 'auth_state':
-          // Future: track auth for push token registration
           break;
         case 'navigation':
-          // Future: deep link handling
           break;
       }
     } catch {
@@ -78,11 +94,9 @@ export function WebViewScreen() {
   const handleShouldStartLoad = useCallback(
     (event: { url: string }): boolean => {
       const { url } = event;
-      // Allow same-origin and allowed OAuth origins
       if (ALLOWED_ORIGINS.some((origin) => url.startsWith(origin))) {
         return true;
       }
-      // Block other external URLs — could open in system browser instead
       return false;
     },
     [],
@@ -96,6 +110,13 @@ export function WebViewScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Offline banner */}
+      {isOffline && (
+        <View style={styles.offlineBanner}>
+          <Text style={styles.offlineBannerText}>⚡ Офлайн-режим</Text>
+        </View>
+      )}
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
@@ -117,9 +138,9 @@ export function WebViewScreen() {
           onShouldStartLoadWithRequest={handleShouldStartLoad}
           // Auth: share cookies with system browser (Supabase sessions)
           sharedCookiesEnabled
-          // Cache
+          // Cache: use cached content when offline
           cacheEnabled
-          cacheMode="LOAD_DEFAULT"
+          cacheMode={isOffline ? 'LOAD_CACHE_ELSE_NETWORK' : 'LOAD_DEFAULT'}
           // UI
           allowsBackForwardNavigationGestures
           pullToRefreshEnabled={Platform.OS === 'android'}
@@ -143,6 +164,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  offlineBanner: {
+    backgroundColor: '#78350f',
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  offlineBannerText: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 11,
+    color: '#fbbf24',
+    letterSpacing: 0.5,
   },
   scrollContent: {
     flex: 1,
