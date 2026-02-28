@@ -56,42 +56,55 @@ export function LoginScreen({ onNavigate }: LoginScreenProps) {
     setLoading(true);
     setLoadingProvider('google');
     setError(null);
-    const result = await signInWithGoogle();
-    if (result.error) {
-      setError(translateError(result.error));
+    try {
+      const result = await signInWithGoogle();
+      if (result.error) {
+        setError(translateError(result.error));
+      }
+    } catch {
+      setError('Ошибка входа через Google');
+    } finally {
+      setLoading(false);
+      setLoadingProvider(null);
     }
-    setLoading(false);
-    setLoadingProvider(null);
   }, []);
 
   const handleAppleLogin = useCallback(async () => {
     setLoading(true);
     setLoadingProvider('apple');
     setError(null);
-    const result = await signInWithApple();
-    if (result.error) {
-      setError(translateError(result.error));
+    try {
+      const result = await signInWithApple();
+      if (result.error) {
+        setError(translateError(result.error));
+      }
+    } catch {
+      setError('Ошибка входа через Apple');
+    } finally {
+      setLoading(false);
+      setLoadingProvider(null);
     }
-    setLoading(false);
-    setLoadingProvider(null);
   }, []);
 
   const handleGitHubLogin = useCallback(async () => {
     setLoading(true);
     setLoadingProvider('github');
     setError(null);
-    const result = await signInWithOAuth('github');
-    if (result.error) {
-      setError(translateError(result.error));
+    try {
+      const result = await signInWithOAuth('github');
+      if (result.error) {
+        setError(translateError(result.error));
+        return;
+      }
+      if (result.url) {
+        await Linking.openURL(result.url);
+      }
+    } catch {
+      setError('Ошибка входа через GitHub');
+    } finally {
       setLoading(false);
       setLoadingProvider(null);
-      return;
     }
-    if (result.url) {
-      await Linking.openURL(result.url);
-    }
-    setLoading(false);
-    setLoadingProvider(null);
   }, [signInWithOAuth]);
 
   return (
