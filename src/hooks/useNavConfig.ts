@@ -5,9 +5,9 @@ import { AppState } from 'react-native';
 import { NAV_CONFIG_URL } from '../config';
 import { FALLBACK_NAV_CONFIG } from '../navigation/fallback-config';
 import type { MobileNavConfig } from '../types/nav';
+import { fetchWithRetry } from '../utils/fetch-retry';
 
 const STORAGE_KEY = 'kodiq:nav-config';
-const FETCH_TIMEOUT = 5000;
 
 /** Runtime validation — server response could be malformed */
 function isValidNavConfig(data: unknown): data is MobileNavConfig {
@@ -44,12 +44,11 @@ export function useNavConfig(): MobileNavConfig {
 
     try {
       try {
-        // Try API first
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT);
-
-        const res = await fetch(NAV_CONFIG_URL, { signal: controller.signal });
-        clearTimeout(timer);
+        // Try API first (retry 2x, 5s timeout)
+        const res = await fetchWithRetry(NAV_CONFIG_URL, undefined, {
+          retries: 2,
+          timeout: 5000,
+        });
 
         if (res.ok) {
           const raw: unknown = await res.json();
