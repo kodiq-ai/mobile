@@ -27,6 +27,7 @@ import { SkeletonLoader } from '../components/SkeletonLoader';
 import { useNavConfig } from '../hooks/useNavConfig';
 import type { WebToNativeMessage } from '../types/bridge';
 import { hapticSuccess } from '../utils/haptics';
+import { updateStreakWidget } from '../services/widget';
 
 const STORAGE_KEY = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
 const COOKIE_BASE = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
@@ -228,6 +229,9 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }:
           case 'milestone':
             hapticSuccess();
             handleMilestoneForReview(msg.event);
+            break;
+          case 'streak_update':
+            void updateStreakWidget(msg.streak, msg.challengeDone);
             break;
           case 'navigation':
             break;
