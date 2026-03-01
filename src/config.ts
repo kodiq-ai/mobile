@@ -1,6 +1,9 @@
 /** Base URL for the Academy web app */
 export const ACADEMY_URL = 'https://kodiq.ai/academy';
 
+/** Server-driven navigation config endpoint */
+export const NAV_CONFIG_URL = 'https://kodiq.ai/api/academy/mobile-nav';
+
 /** Origins allowed to load in the WebView */
 export const ALLOWED_ORIGINS = [
   'https://kodiq.ai',
@@ -10,15 +13,21 @@ export const ALLOWED_ORIGINS = [
   'https://api.github.com',
 ] as const;
 
-/** App theme colors matching Kodiq web */
+/** App theme colors matching Kodiq web (Graphite Calm palette) */
 export const COLORS = {
   background: '#141416',
-  surface: '#1c1c1e',
-  accent: '#06b6d4',
-  text: '#fafafa',
-  textMuted: '#71717a',
-  border: '#27272a',
-  error: '#ef4444',
+  surface: '#1a1a1d',
+  surfaceElevated: '#202024',
+  accent: '#4da3c7',
+  accentDim: 'rgba(77, 163, 199, 0.15)',
+  text: '#e6e6e9',
+  textMuted: '#6e6e76',
+  textSecondary: '#a1a1a8',
+  border: 'rgba(255, 255, 255, 0.08)',
+  borderStrong: 'rgba(255, 255, 255, 0.14)',
+  error: '#c36a6a',
+  success: '#6faf8f',
+  warning: '#c9a95e',
 } as const;
 
 /**

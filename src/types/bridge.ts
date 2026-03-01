@@ -10,12 +10,16 @@ export type WebToNativeMessage =
   | { type: 'navigation'; url: string }
   | { type: 'auth_state'; authenticated: boolean }
   | { type: 'theme'; mode: 'dark' | 'light' }
-  | { type: 'logout' };
+  | { type: 'logout' }
+  | { type: 'page_meta'; title: string; path: string; canGoBack: boolean }
+  | { type: 'notification_count'; count: number };
 
 /** Messages sent from Native to WebView (web) */
 export type NativeToWebMessage =
   | { type: 'connectivity'; online: boolean }
-  | { type: 'push_token'; token: string };
+  | { type: 'push_token'; token: string }
+  | { type: 'navigate'; path: string }
+  | { type: 'set_locale'; locale: 'ru' | 'en' };
 
 /** Global declaration injected into WebView */
 declare global {
