@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Long-press app icon shortcuts -->
+    <shortcut
+        android:shortcutId="review"
+        android:enabled="true"
+        android:shortcutShortLabel="@string/shortcut_review"
+        android:shortcutLongLabel="@string/shortcut_review_long"
+        android:icon="@mipmap/ic_launcher">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="ai.kodiq"
+            android:targetClass="ai.kodiq.MainActivity"
+            android:data="kodiq://review" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="dashboard"
+        android:enabled="true"
+        android:shortcutShortLabel="@string/shortcut_dashboard"
+        android:shortcutLongLabel="@string/shortcut_dashboard_long"
+        android:icon="@mipmap/ic_launcher">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="ai.kodiq"
+            android:targetClass="ai.kodiq.MainActivity"
+            android:data="kodiq://dashboard" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="search"
+        android:enabled="true"
+        android:shortcutShortLabel="@string/shortcut_search"
+        android:shortcutLongLabel="@string/shortcut_search_long"
+        android:icon="@mipmap/ic_launcher">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="ai.kodiq"
+            android:targetClass="ai.kodiq.MainActivity"
+            android:data="kodiq://search" />
+    </shortcut>
+</shortcuts>
