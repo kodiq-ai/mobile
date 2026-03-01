@@ -82,6 +82,7 @@ function AppContent() {
     if (!consentLoaded) return;
     if (consent?.analytics) {
       posthog.optIn();
+      void posthog.register({ $product: "Kodiq App" });
     } else {
       posthog.optOut();
     }
