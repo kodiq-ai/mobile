@@ -13,21 +13,22 @@ export const ALLOWED_ORIGINS = [
   'https://api.github.com',
 ] as const;
 
-/** App theme colors matching Kodiq web (Graphite Calm palette) */
+/** App theme colors matching Kodiq web (Warm Gold palette) */
 export const COLORS = {
-  background: '#141416',
-  surface: '#1a1a1d',
-  surfaceElevated: '#202024',
-  accent: '#4da3c7',
-  accentDim: 'rgba(77, 163, 199, 0.15)',
-  text: '#e6e6e9',
-  textMuted: '#6e6e76',
-  textSecondary: '#a1a1a8',
-  border: 'rgba(255, 255, 255, 0.08)',
-  borderStrong: 'rgba(255, 255, 255, 0.14)',
-  error: '#c36a6a',
-  success: '#6faf8f',
-  warning: '#c9a95e',
+  background: '#08080a',
+  surface: '#111114',
+  surfaceElevated: '#18181d',
+  accent: '#c4a882',
+  accentLight: '#dac4a0',
+  accentDim: 'rgba(196, 168, 130, 0.15)',
+  text: '#ece8e1',
+  textMuted: '#4a4a48',
+  textSecondary: '#8a8780',
+  border: 'rgba(255, 255, 255, 0.06)',
+  borderStrong: 'rgba(255, 255, 255, 0.1)',
+  error: '#c4705a',
+  success: '#6a9a5a',
+  warning: '#d4944a',
 } as const;
 
 /**
