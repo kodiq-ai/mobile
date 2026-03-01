@@ -5,6 +5,7 @@ import {
   Linking,
   Platform,
   Pressable,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -216,6 +217,13 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }:
             break;
           case 'notification_count':
             setNotificationCount(msg.count);
+            break;
+          case 'share':
+            Share.share({
+              title: msg.title,
+              message: [msg.text, msg.url].filter(Boolean).join('\n'),
+              ...(Platform.OS === 'ios' && msg.url ? { url: msg.url } : {}),
+            }).catch(() => {});
             break;
           case 'milestone':
             hapticSuccess();
