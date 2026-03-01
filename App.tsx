@@ -22,15 +22,18 @@ import { LoginScreen } from './src/screens/LoginScreen';
 import { OfflineScreen } from './src/screens/OfflineScreen';
 import { RegisterScreen } from './src/screens/RegisterScreen';
 import { SplashScreen } from './src/screens/SplashScreen';
+import { BiometricLockScreen } from './src/screens/BiometricLockScreen';
 import { WebViewScreen } from './src/screens/WebViewScreen';
+import { useBiometric } from './src/hooks/useBiometric';
 import { connectivityService } from './src/services/connectivity';
 import { onTokenRefresh, registerPushToken } from './src/services/push';
 
 type AuthScreen = 'login' | 'register' | 'forgot' | 'email-sent';
 
 function AppContent() {
-  const { session, isLoading } = useAuth();
+  const { session, isLoading, signOut } = useAuth();
   const posthog = usePostHog();
+  const biometric = useBiometric(!!session);
   const accessTokenRef = useRef<string | null>(null);
   const [connectivityReady, setConnectivityReady] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
@@ -213,6 +216,16 @@ function AppContent() {
     })();
 
     return <AnimatedScreen screenKey={authScreen}>{screen}</AnimatedScreen>;
+  }
+
+  // Biometric lock gate
+  if (biometric.state === 'locked' || biometric.state === 'prompting') {
+    return (
+      <BiometricLockScreen
+        onUnlock={biometric.unlock}
+        onSignOut={signOut}
+      />
+    );
   }
 
   // Authenticated → WebView with session injection
