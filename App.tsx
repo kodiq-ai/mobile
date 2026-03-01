@@ -20,6 +20,10 @@ import { EmailSentScreen } from './src/screens/EmailSentScreen';
 import { ForgotPasswordScreen } from './src/screens/ForgotPasswordScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { OfflineScreen } from './src/screens/OfflineScreen';
+import {
+  OnboardingScreen,
+  isOnboardingDone,
+} from './src/screens/OnboardingScreen';
 import { RegisterScreen } from './src/screens/RegisterScreen';
 import { SplashScreen } from './src/screens/SplashScreen';
 import { BiometricLockScreen } from './src/screens/BiometricLockScreen';
@@ -41,10 +45,16 @@ function AppContent() {
   const [deepLinkUrl, setDeepLinkUrl] = useState<string | null>(null);
   const [authScreen, setAuthScreen] = useState<AuthScreen>('login');
   const [showSplash, setShowSplash] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
 
   // Initialize analytics on mount
   useEffect(() => {
     void initAnalytics();
+  }, []);
+
+  // Check onboarding status
+  useEffect(() => {
+    isOnboardingDone().then((done) => setShowOnboarding(!done));
   }, []);
 
   // Set/clear analytics user when session changes (Firebase + PostHog)
@@ -198,6 +208,15 @@ function AppContent() {
   // Offline on cold start (no previous WebView cache)
   if (!wasReady && isOffline && !session) {
     return <OfflineScreen onRetry={handleRetry} />;
+  }
+
+  // Onboarding — first launch only
+  if (showOnboarding) {
+    return (
+      <AnimatedScreen screenKey="onboarding">
+        <OnboardingScreen onComplete={() => setShowOnboarding(false)} />
+      </AnimatedScreen>
+    );
   }
 
   // Not authenticated → auth screens with transition
