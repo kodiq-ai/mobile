@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../config';
 import type { DrawerSection } from '../types/nav';
+import { hapticLight, hapticMedium } from '../utils/haptics';
 import { KodiqLogo } from './icons/KodiqLogo';
 import { getNavIcon } from './icons/NavIcons';
 
@@ -44,6 +45,7 @@ export function DrawerMenu({
   useEffect(() => {
     if (visible) {
       setIsMounted(true);
+      hapticMedium();
       Animated.parallel([
         Animated.timing(slideAnim, {
           toValue: 0,
@@ -144,6 +146,7 @@ export function DrawerMenu({
                     key={item.id}
                     style={styles.menuItem}
                     onPress={() => {
+                      hapticLight();
                       onNavigate(item.path, item.external);
                       onClose();
                     }}
