@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -69,7 +70,12 @@ export function ConsentScreen({ initialChoices, onSave }: ConsentScreenProps) {
         {/* Privacy policy link */}
         <Text style={styles.privacyNote}>
           Подробнее в{' '}
-          <Text style={styles.privacyLink}>Политике конфиденциальности</Text>
+          <Text
+            style={styles.privacyLink}
+            onPress={() => Linking.openURL('https://kodiq.ai/legal/privacy')}
+          >
+            Политике конфиденциальности
+          </Text>
           {'\n'}Вы можете изменить выбор в любое время в настройках.
         </Text>
       </ScrollView>
