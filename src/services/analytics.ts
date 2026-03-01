@@ -2,10 +2,17 @@ import * as Sentry from '@sentry/react-native';
 import analytics from '@react-native-firebase/analytics';
 import crashlytics from '@react-native-firebase/crashlytics';
 
-/** Initialize Firebase Analytics + Crashlytics */
-export async function initAnalytics(): Promise<void> {
+/** Initialize Firebase Analytics + Crashlytics, respecting consent */
+export async function initAnalytics(analyticsConsent = true): Promise<void> {
+  // Crashlytics is essential — always enabled
   await crashlytics().setCrashlyticsCollectionEnabled(true);
-  await analytics().setAnalyticsCollectionEnabled(true);
+  // Firebase Analytics respects user consent
+  await analytics().setAnalyticsCollectionEnabled(analyticsConsent);
+}
+
+/** Update analytics collection based on consent change */
+export async function setAnalyticsConsent(enabled: boolean): Promise<void> {
+  await analytics().setAnalyticsCollectionEnabled(enabled);
 }
 
 /** Set user ID for Analytics, Crashlytics, and Sentry */

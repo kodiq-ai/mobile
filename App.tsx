@@ -15,9 +15,17 @@ import { ForceUpdateScreen } from './src/screens/ForceUpdateScreen';
 import {
   clearAnalyticsUser,
   initAnalytics,
+  setAnalyticsConsent,
   setAnalyticsUser,
   trackScreen,
 } from './src/services/analytics';
+import {
+  type ConsentChoices,
+  getDefaultChoices,
+  loadConsent,
+  saveConsent,
+} from './src/services/consent';
+import { ConsentScreen } from './src/screens/ConsentScreen';
 import { EmailSentScreen } from './src/screens/EmailSentScreen';
 import { ForgotPasswordScreen } from './src/screens/ForgotPasswordScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
@@ -52,16 +60,32 @@ function AppContent() {
   const [authScreen, setAuthScreen] = useState<AuthScreen>('login');
   const [showSplash, setShowSplash] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
+  const [consent, setConsent] = useState<ConsentChoices | null>(null);
+  const [consentLoaded, setConsentLoaded] = useState(false);
 
-  // Initialize analytics on mount
+  // Load consent + initialize analytics respecting consent
   useEffect(() => {
-    void initAnalytics();
+    loadConsent().then((saved) => {
+      setConsent(saved);
+      setConsentLoaded(true);
+      void initAnalytics(saved?.analytics ?? false);
+    });
   }, []);
 
   // Check onboarding status
   useEffect(() => {
     isOnboardingDone().then((done) => setShowOnboarding(!done));
   }, []);
+
+  // Apply consent to PostHog
+  useEffect(() => {
+    if (!consentLoaded) return;
+    if (consent?.analytics) {
+      posthog.optIn();
+    } else {
+      posthog.optOut();
+    }
+  }, [consent, consentLoaded, posthog]);
 
   // Set/clear analytics user when session changes (Firebase + PostHog)
   useEffect(() => {
@@ -226,6 +250,22 @@ function AppContent() {
     return (
       <AnimatedScreen screenKey="onboarding">
         <OnboardingScreen onComplete={() => setShowOnboarding(false)} />
+      </AnimatedScreen>
+    );
+  }
+
+  // Consent screen — after onboarding, before auth
+  if (consentLoaded && !consent) {
+    return (
+      <AnimatedScreen screenKey="consent">
+        <ConsentScreen
+          initialChoices={getDefaultChoices()}
+          onSave={(choices) => {
+            setConsent(choices);
+            void saveConsent(choices);
+            void setAnalyticsConsent(choices.analytics);
+          }}
+        />
       </AnimatedScreen>
     );
   }
