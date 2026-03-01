@@ -403,14 +403,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   offlineBanner: {
-    backgroundColor: '#78350f',
+    backgroundColor: 'rgba(212, 148, 74, 0.2)',
     paddingVertical: 6,
     alignItems: 'center',
   },
   offlineBannerText: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     fontSize: 11,
-    color: '#fbbf24',
+    color: COLORS.warning,
     letterSpacing: 0.5,
   },
   webview: {
