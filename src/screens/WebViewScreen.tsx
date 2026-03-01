@@ -17,6 +17,7 @@ import type {
 } from 'react-native-webview';
 
 import { useAuth } from '../auth/useAuth';
+import { handleMilestoneForReview } from '../services/app-rating';
 import { ACADEMY_URL, ALLOWED_ORIGINS, COLORS, SUPABASE_PROJECT_REF } from '../config';
 import { DrawerMenu } from '../components/DrawerMenu';
 import { NativeHeader } from '../components/NativeHeader';
@@ -218,6 +219,7 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }:
             break;
           case 'milestone':
             hapticSuccess();
+            handleMilestoneForReview(msg.event);
             break;
           case 'navigation':
             break;
