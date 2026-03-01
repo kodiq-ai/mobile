@@ -28,6 +28,8 @@ export interface TabItem {
   path: string;
   /** Badge type — 'notifications' shows unread count */
   badge?: 'notifications' | 'none';
+  /** Visual style — 'raised' renders as elevated center button */
+  style?: 'default' | 'raised';
 }
 
 export interface DrawerSection {

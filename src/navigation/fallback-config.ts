@@ -3,16 +3,16 @@ import type { MobileNavConfig } from '../types/nav';
 /**
  * Hardcoded fallback navigation config.
  * Used when API is unreachable and no cached config exists.
- * Mirrors the 6 web tabs from BottomTabBar.
+ * Mirrors the 5 web tabs: Home → Progress → [AI Mentor] → Feed → Leaderboard
  */
 export const FALLBACK_NAV_CONFIG: MobileNavConfig = {
-  version: 1,
+  version: 2,
   tabs: [
     {
-      id: 'courses',
-      icon: 'BookOpen',
-      labelKey: 'nav.courses',
-      labelFallback: 'Курсы',
+      id: 'home',
+      icon: 'Home',
+      labelKey: 'nav.home',
+      labelFallback: 'Главная',
       path: '/',
     },
     {
@@ -23,18 +23,12 @@ export const FALLBACK_NAV_CONFIG: MobileNavConfig = {
       path: '/dashboard',
     },
     {
-      id: 'skill-map',
-      icon: 'Map',
-      labelKey: 'nav.skillMap',
-      labelFallback: 'Карта',
-      path: '/skill-map',
-    },
-    {
-      id: 'review',
-      icon: 'RefreshCw',
-      labelKey: 'nav.review',
-      labelFallback: 'Повторение',
-      path: '/review',
+      id: 'ai-mentor',
+      icon: 'Brain',
+      labelKey: 'nav.aiMentor',
+      labelFallback: 'AI Ментор',
+      path: '__ai_mentor__',
+      style: 'raised',
     },
     {
       id: 'feed',
@@ -47,7 +41,7 @@ export const FALLBACK_NAV_CONFIG: MobileNavConfig = {
       id: 'leaderboard',
       icon: 'Trophy',
       labelKey: 'nav.leaderboard',
-      labelFallback: 'Лидеры',
+      labelFallback: 'Рейтинг',
       path: '/leaderboard',
     },
   ],

@@ -251,8 +251,18 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }:
     [],
   );
 
-  // Tab press → navigate WebView
+  // Tab press → navigate WebView or toggle AI Mentor
   const handleTabPress = useCallback((path: string) => {
+    if (path === '__ai_mentor__') {
+      // Dispatch CustomEvent that AiMentorEventBridge listens for on the web side
+      webViewRef.current?.injectJavaScript(`
+        (function() {
+          window.dispatchEvent(new CustomEvent('toggle-ai-mentor'));
+          true;
+        })();
+      `);
+      return;
+    }
     webViewRef.current?.injectJavaScript(buildNavigateJS(path));
   }, []);
 

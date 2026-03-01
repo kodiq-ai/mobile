@@ -171,6 +171,29 @@ function Menu({ size = 24, color = '#e6e6e9' }: IconProps) {
   );
 }
 
+function Brain({ size = 24, color = '#e6e6e9' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      {/* Left hemisphere */}
+      <Path d="M12 4C10 4 8.5 4.5 7.5 5.5C6 7 6 9 6.5 10.5C5.5 11 4.5 12 4.5 13.5C4.5 15 5.5 16 6.5 16.5C6.5 17.5 7 19 8.5 20C9.5 20.7 11 21 12 21" />
+      {/* Right hemisphere */}
+      <Path d="M12 4C14 4 15.5 4.5 16.5 5.5C18 7 18 9 17.5 10.5C18.5 11 19.5 12 19.5 13.5C19.5 15 18.5 16 17.5 16.5C17.5 17.5 17 19 15.5 20C14.5 20.7 13 21 12 21" />
+      {/* Brain stem */}
+      <Path d="M12 21V23" />
+      {/* Sulci — left */}
+      <Path d="M7.5 8C8.5 8.5 10 8 10.5 7" />
+      <Path d="M6 13C7.5 13 9 12 9.5 11" />
+      <Path d="M7.5 17C9 16.5 10 15.5 10.5 14.5" />
+      {/* Sulci — right */}
+      <Path d="M16.5 8C15.5 8.5 14 8 13.5 7" />
+      <Path d="M18 13C16.5 13 15 12 14.5 11" />
+      <Path d="M16.5 17C15 16.5 14 15.5 13.5 14.5" />
+      {/* Central fissure */}
+      <Path d="M12 4V21" />
+    </Svg>
+  );
+}
+
 function ChevronLeft({ size = 24, color = '#e6e6e9' }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -204,6 +227,7 @@ export const NAV_ICON_MAP: Record<string, React.FC<IconProps>> = {
   Star,
   Code,
   Bell,
+  Brain,
   MessageCircle,
   Home,
   User,
