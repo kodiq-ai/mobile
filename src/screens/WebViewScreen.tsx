@@ -20,6 +20,7 @@ import { ACADEMY_URL, ALLOWED_ORIGINS, COLORS, SUPABASE_PROJECT_REF } from '../c
 import { DrawerMenu } from '../components/DrawerMenu';
 import { NativeHeader } from '../components/NativeHeader';
 import { NativeTabBar } from '../components/NativeTabBar';
+import { SkeletonLoader } from '../components/SkeletonLoader';
 import { useNavConfig } from '../hooks/useNavConfig';
 import type { WebToNativeMessage } from '../types/bridge';
 import { hapticSuccess } from '../utils/haptics';
@@ -121,6 +122,7 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session }: WebViewScreen
   const [pageCanGoBack, setPageCanGoBack] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
   const [drawerVisible, setDrawerVisible] = useState(false);
+  const [contentLoaded, setContentLoaded] = useState(false);
 
   // Re-inject session when token refreshes
   const prevTokenRef = useRef(session.access_token);
@@ -202,6 +204,7 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session }: WebViewScreen
             setPageTitle(msg.title);
             setActivePath(msg.path);
             setPageCanGoBack(msg.canGoBack);
+            if (!contentLoaded) setContentLoaded(true);
             break;
           case 'notification_count':
             setNotificationCount(msg.count);
@@ -216,7 +219,7 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session }: WebViewScreen
         // Ignore non-JSON messages
       }
     },
-    [signOut],
+    [signOut, contentLoaded],
   );
 
   const handleShouldStartLoad = useCallback(
@@ -288,34 +291,42 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session }: WebViewScreen
       />
 
       {/* WebView — content area */}
-      <WebView
-        ref={webViewRef}
-        source={{ uri: ACADEMY_URL }}
-        style={styles.webview}
-        injectedJavaScriptBeforeContentLoaded={injectedJS}
-        injectedJavaScript={INJECTED_JS_NO_SESSION}
-        onNavigationStateChange={handleNavigationStateChange}
-        onMessage={handleMessage}
-        onShouldStartLoadWithRequest={handleShouldStartLoad}
-        // Auth: cookies still shared for SSR compatibility
-        sharedCookiesEnabled
-        // Cache
-        cacheEnabled
-        cacheMode={isOffline ? 'LOAD_CACHE_ELSE_NETWORK' : 'LOAD_DEFAULT'}
-        // UI
-        allowsBackForwardNavigationGestures
-        pullToRefreshEnabled={Platform.OS === 'android'}
-        startInLoadingState
-        renderLoading={() => <View style={styles.loading} />}
-        // Security
-        javaScriptEnabled
-        domStorageEnabled
-        allowsInlineMediaPlayback
-        mediaPlaybackRequiresUserAction={false}
-        // Scroll
-        overScrollMode="never"
-        scrollEnabled
-      />
+      <View style={styles.webviewContainer}>
+        <WebView
+          ref={webViewRef}
+          source={{ uri: ACADEMY_URL }}
+          style={styles.webview}
+          injectedJavaScriptBeforeContentLoaded={injectedJS}
+          injectedJavaScript={INJECTED_JS_NO_SESSION}
+          onNavigationStateChange={handleNavigationStateChange}
+          onMessage={handleMessage}
+          onShouldStartLoadWithRequest={handleShouldStartLoad}
+          // Auth: cookies still shared for SSR compatibility
+          sharedCookiesEnabled
+          // Cache
+          cacheEnabled
+          cacheMode={isOffline ? 'LOAD_CACHE_ELSE_NETWORK' : 'LOAD_DEFAULT'}
+          // UI
+          allowsBackForwardNavigationGestures
+          pullToRefreshEnabled={Platform.OS === 'android'}
+          startInLoadingState
+          // Security
+          javaScriptEnabled
+          domStorageEnabled
+          allowsInlineMediaPlayback
+          mediaPlaybackRequiresUserAction={false}
+          // Scroll
+          overScrollMode="never"
+          scrollEnabled
+        />
+
+        {/* Skeleton overlay — visible until first page_meta */}
+        {!contentLoaded && (
+          <View style={StyleSheet.absoluteFill}>
+            <SkeletonLoader />
+          </View>
+        )}
+      </View>
 
       {/* Native Tab Bar */}
       <NativeTabBar
@@ -358,8 +369,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  loading: {
+  webviewContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
 });
