@@ -28,7 +28,9 @@ import { RegisterScreen } from './src/screens/RegisterScreen';
 import { SplashScreen } from './src/screens/SplashScreen';
 import { BiometricLockScreen } from './src/screens/BiometricLockScreen';
 import { WebViewScreen } from './src/screens/WebViewScreen';
+import { WhatsNewModal } from './src/components/WhatsNewModal';
 import { useBiometric } from './src/hooks/useBiometric';
+import { useWhatsNew } from './src/hooks/useWhatsNew';
 import { connectivityService } from './src/services/connectivity';
 import { onTokenRefresh, registerPushToken } from './src/services/push';
 
@@ -38,6 +40,7 @@ function AppContent() {
   const { session, isLoading, signOut } = useAuth();
   const posthog = usePostHog();
   const biometric = useBiometric(!!session);
+  const whatsNew = useWhatsNew();
   const accessTokenRef = useRef<string | null>(null);
   const [connectivityReady, setConnectivityReady] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
@@ -254,6 +257,11 @@ function AppContent() {
         isOffline={isOffline}
         deepLinkUrl={deepLinkUrl}
         session={session}
+      />
+      <WhatsNewModal
+        visible={whatsNew.shouldShow}
+        entries={whatsNew.entries}
+        onDismiss={() => void whatsNew.dismiss()}
       />
     </AnimatedScreen>
   );
