@@ -1,0 +1,30 @@
+# Deliverfile — App Store metadata upload config
+
+app_identifier "ai.kodiq"
+username "" # Not needed with API key auth
+
+# Pricing
+price_tier 0 # Free
+
+# Category
+primary_category "EDUCATION"
+secondary_category "BUSINESS"
+
+# Age Rating (all false = 4+)
+app_rating_config_path "./fastlane/rating_config.json"
+
+# Metadata
+copyright "#{Time.now.year} GODANCETV LLP"
+
+# Screenshots
+overwrite_screenshots true
+
+# Skip binary upload (handled by beta/release lanes)
+skip_binary_upload true
+
+# Auto-submit for review after upload
+submit_for_review false
+automatic_release false
+
+# Phased release (gradual rollout)
+phased_release true

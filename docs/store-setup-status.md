@@ -44,14 +44,14 @@ git push origin v1.0.0
 # 2. Или переместить в Production track
 ```
 
-## APNs Key → Firebase (#46) ⬜ PENDING
+## APNs Key → Firebase (#46) ✅ DONE
 
-**Единственный незавершённый шаг** — ручная загрузка APNs Authentication Key.
+| Item | Status | Value |
+|------|--------|-------|
+| APNs Auth Key (.p8) | Uploaded to Firebase | Key ID in `APNS_AUTH_KEY_ID` secret |
+| Team ID | Configured | `JRJGS4U2DJ` |
+| Backup in GitHub | Secrets | `APNS_AUTH_KEY_P8`, `APNS_AUTH_KEY_ID`, `APNS_TEAM_ID` |
+| Firebase Admin SDK | Configured on server | `FIREBASE_ADMIN_KEY` in `.env.local` |
+| Server push code | Ready | `web/src/lib/push/send.ts` |
 
-Подробные шаги: [`docs/apns-setup.md`](./apns-setup.md)
-
-**Краткое**:
-1. [Apple Developer → Keys](https://developer.apple.com/account/resources/authkeys/list) → Create → APNs → Download `.p8`
-2. [Firebase Console → Cloud Messaging](https://console.firebase.google.com/project/academy-286bd/settings/cloudmessaging) → Upload `.p8` + Key ID + Team ID
-
-**Без этого шага**: iOS push-уведомления НЕ будут работать. Android push работает.
+iOS и Android push-уведомления полностью настроены.
