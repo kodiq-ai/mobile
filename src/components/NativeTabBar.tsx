@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../config';
 import type { TabItem } from '../types/nav';
+import { hapticLight } from '../utils/haptics';
 import { getNavIcon } from './icons/NavIcons';
 
 interface NativeTabBarProps {
@@ -53,7 +54,10 @@ export function NativeTabBar({
             <Pressable
               key={tab.id}
               style={styles.tab}
-              onPress={() => onTabPress(tab.path)}
+              onPress={() => {
+                hapticLight();
+                onTabPress(tab.path);
+              }}
               accessibilityRole="tab"
               accessibilityState={{ selected: active }}
               accessibilityLabel={tab.labelFallback}
