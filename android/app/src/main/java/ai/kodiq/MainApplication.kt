@@ -31,15 +31,38 @@ class MainApplication : Application(), ReactApplication {
 
   private fun createNotificationChannel() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      val channel = NotificationChannel(
-        "kodiq_academy",
-        "Kodiq Academy",
-        NotificationManager.IMPORTANCE_HIGH
-      ).apply {
-        description = "Уведомления Kodiq Academy"
-      }
       val manager = getSystemService(NotificationManager::class.java)
-      manager.createNotificationChannel(channel)
+
+      val channels = listOf(
+        NotificationChannel(
+          "lessons",
+          "Уроки и модули",
+          NotificationManager.IMPORTANCE_HIGH
+        ).apply { description = "Новые уроки, модули и обновления контента" },
+
+        NotificationChannel(
+          "reminders",
+          "Напоминания",
+          NotificationManager.IMPORTANCE_DEFAULT
+        ).apply { description = "Streak, повторение, daily challenges" },
+
+        NotificationChannel(
+          "social",
+          "Социальное",
+          NotificationManager.IMPORTANCE_LOW
+        ).apply { description = "Комментарии, peer review, лента" },
+
+        NotificationChannel(
+          "system",
+          "Системные",
+          NotificationManager.IMPORTANCE_HIGH
+        ).apply { description = "Обновления приложения, обслуживание" },
+      )
+
+      manager.createNotificationChannels(channels)
+
+      // Remove legacy channel
+      manager.deleteNotificationChannel("kodiq_academy")
     }
   }
 }
