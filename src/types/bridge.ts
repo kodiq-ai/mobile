@@ -12,7 +12,8 @@ export type WebToNativeMessage =
   | { type: 'theme'; mode: 'dark' | 'light' }
   | { type: 'logout' }
   | { type: 'page_meta'; title: string; path: string; canGoBack: boolean }
-  | { type: 'notification_count'; count: number };
+  | { type: 'notification_count'; count: number }
+  | { type: 'share'; title: string; text?: string; url?: string };
 
 /** Messages sent from Native to WebView (web) */
 export type NativeToWebMessage =
