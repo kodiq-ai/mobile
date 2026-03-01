@@ -1,0 +1,89 @@
+name: Publish to Stores
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Where to publish'
+        required: true
+        type: choice
+        options:
+          - metadata-only
+          - submit-ios-review
+          - promote-android-production
+          - all
+
+jobs:
+  ios-metadata:
+    if: contains(fromJSON('["metadata-only", "all"]'), github.event.inputs.target)
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Upload iOS metadata + screenshots
+        env:
+          APPSTORE_CONNECT_API_KEY_ID: ${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}
+          APPSTORE_CONNECT_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          APPSTORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APPSTORE_CONNECT_API_KEY }}
+        run: bundle exec fastlane ios upload_metadata
+
+  ios-submit:
+    if: contains(fromJSON('["submit-ios-review", "all"]'), github.event.inputs.target)
+    needs: [ios-metadata]
+    runs-on: macos-26
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Submit for App Store review
+        env:
+          APPSTORE_CONNECT_API_KEY_ID: ${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}
+          APPSTORE_CONNECT_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          APPSTORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APPSTORE_CONNECT_API_KEY }}
+        run: bundle exec fastlane ios submit_review
+
+  android-metadata:
+    if: contains(fromJSON('["metadata-only", "all"]'), github.event.inputs.target)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Upload Android metadata + screenshots
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}
+        run: bundle exec fastlane android upload_metadata
+
+  android-promote:
+    if: contains(fromJSON('["promote-android-production", "all"]'), github.event.inputs.target)
+    needs: [android-metadata]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Promote to production
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}
+        run: bundle exec fastlane android promote_to_production
