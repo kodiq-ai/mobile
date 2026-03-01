@@ -14,7 +14,8 @@ export type WebToNativeMessage =
   | { type: 'page_meta'; title: string; path: string; canGoBack: boolean }
   | { type: 'notification_count'; count: number }
   | { type: 'milestone'; event: string }
-  | { type: 'share'; title: string; text?: string; url?: string };
+  | { type: 'share'; title: string; text?: string; url?: string }
+  | { type: 'streak_update'; streak: number; challengeDone: boolean };
 
 /** Messages sent from Native to WebView (web) */
 export type NativeToWebMessage =

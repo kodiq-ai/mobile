@@ -7,4 +7,6 @@
     <string name="shortcut_dashboard_long">Мой прогресс</string>
     <string name="shortcut_search">Поиск</string>
     <string name="shortcut_search_long">Поиск курсов</string>
+    <!-- Streak Widget -->
+    <string name="widget_description">Streak и ежедневный прогресс</string>
 </resources>
