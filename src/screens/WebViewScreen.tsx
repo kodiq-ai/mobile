@@ -22,6 +22,7 @@ import { NativeHeader } from '../components/NativeHeader';
 import { NativeTabBar } from '../components/NativeTabBar';
 import { useNavConfig } from '../hooks/useNavConfig';
 import type { WebToNativeMessage } from '../types/bridge';
+import { hapticSuccess } from '../utils/haptics';
 
 const STORAGE_KEY = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
 const COOKIE_BASE = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
@@ -204,6 +205,9 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session }: WebViewScreen
             break;
           case 'notification_count':
             setNotificationCount(msg.count);
+            break;
+          case 'milestone':
+            hapticSuccess();
             break;
           case 'navigation':
             break;
