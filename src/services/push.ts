@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 import { ACADEMY_URL } from '../config';
+import { fetchWithRetry } from '../utils/fetch-retry';
 
 const STORAGE_KEY = 'fcm_token';
 const API_URL = `${ACADEMY_URL.replace('/academy', '')}/api/academy/push-token`;
@@ -34,14 +35,14 @@ export async function registerPushToken(accessToken?: string): Promise<void> {
       headers['Authorization'] = `Bearer ${accessToken}`;
     }
 
-    const response = await fetch(API_URL, {
+    const response = await fetchWithRetry(API_URL, {
       method: 'POST',
       headers,
       body: JSON.stringify({
         token,
         platform: Platform.OS,
       }),
-    });
+    }, { retries: 3, timeout: 10000 });
 
     if (response.ok) {
       await AsyncStorage.setItem(STORAGE_KEY, token);
