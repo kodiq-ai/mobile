@@ -20,17 +20,27 @@ import { EmailSentScreen } from './src/screens/EmailSentScreen';
 import { ForgotPasswordScreen } from './src/screens/ForgotPasswordScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { OfflineScreen } from './src/screens/OfflineScreen';
+import {
+  OnboardingScreen,
+  isOnboardingDone,
+} from './src/screens/OnboardingScreen';
 import { RegisterScreen } from './src/screens/RegisterScreen';
 import { SplashScreen } from './src/screens/SplashScreen';
+import { BiometricLockScreen } from './src/screens/BiometricLockScreen';
 import { WebViewScreen } from './src/screens/WebViewScreen';
+import { WhatsNewModal } from './src/components/WhatsNewModal';
+import { useBiometric } from './src/hooks/useBiometric';
+import { useWhatsNew } from './src/hooks/useWhatsNew';
 import { connectivityService } from './src/services/connectivity';
 import { onTokenRefresh, registerPushToken } from './src/services/push';
 
 type AuthScreen = 'login' | 'register' | 'forgot' | 'email-sent';
 
 function AppContent() {
-  const { session, isLoading } = useAuth();
+  const { session, isLoading, signOut } = useAuth();
   const posthog = usePostHog();
+  const biometric = useBiometric(!!session);
+  const whatsNew = useWhatsNew();
   const accessTokenRef = useRef<string | null>(null);
   const [connectivityReady, setConnectivityReady] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
@@ -38,10 +48,16 @@ function AppContent() {
   const [deepLinkUrl, setDeepLinkUrl] = useState<string | null>(null);
   const [authScreen, setAuthScreen] = useState<AuthScreen>('login');
   const [showSplash, setShowSplash] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
 
   // Initialize analytics on mount
   useEffect(() => {
     void initAnalytics();
+  }, []);
+
+  // Check onboarding status
+  useEffect(() => {
+    isOnboardingDone().then((done) => setShowOnboarding(!done));
   }, []);
 
   // Set/clear analytics user when session changes (Firebase + PostHog)
@@ -197,6 +213,15 @@ function AppContent() {
     return <OfflineScreen onRetry={handleRetry} />;
   }
 
+  // Onboarding — first launch only
+  if (showOnboarding) {
+    return (
+      <AnimatedScreen screenKey="onboarding">
+        <OnboardingScreen onComplete={() => setShowOnboarding(false)} />
+      </AnimatedScreen>
+    );
+  }
+
   // Not authenticated → auth screens with transition
   if (!session) {
     const screen = (() => {
@@ -215,6 +240,16 @@ function AppContent() {
     return <AnimatedScreen screenKey={authScreen}>{screen}</AnimatedScreen>;
   }
 
+  // Biometric lock gate
+  if (biometric.state === 'locked' || biometric.state === 'prompting') {
+    return (
+      <BiometricLockScreen
+        onUnlock={biometric.unlock}
+        onSignOut={signOut}
+      />
+    );
+  }
+
   // Authenticated → WebView with session injection
   return (
     <AnimatedScreen screenKey="webview">
@@ -222,6 +257,11 @@ function AppContent() {
         isOffline={isOffline}
         deepLinkUrl={deepLinkUrl}
         session={session}
+      />
+      <WhatsNewModal
+        visible={whatsNew.shouldShow}
+        entries={whatsNew.entries}
+        onDismiss={() => void whatsNew.dismiss()}
       />
     </AnimatedScreen>
   );
