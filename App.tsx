@@ -10,6 +10,8 @@ import { useAuth } from './src/auth/useAuth';
 import { AnimatedScreen } from './src/components/AnimatedScreen';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { COLORS, POSTHOG_API_KEY, POSTHOG_HOST } from './src/config';
+import { useForceUpdate } from './src/hooks/useForceUpdate';
+import { ForceUpdateScreen } from './src/screens/ForceUpdateScreen';
 import {
   clearAnalyticsUser,
   initAnalytics,
@@ -32,6 +34,7 @@ function AppContent() {
   const { session, isLoading } = useAuth();
   const posthog = usePostHog();
   const accessTokenRef = useRef<string | null>(null);
+  const { status: updateStatus, storeUrl, dismiss: dismissUpdate } = useForceUpdate();
   const [connectivityReady, setConnectivityReady] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [wasReady, setWasReady] = useState(false);
@@ -192,6 +195,11 @@ function AppContent() {
     );
   }
 
+  // Force update — blocking screen
+  if (updateStatus === 'force') {
+    return <ForceUpdateScreen storeUrl={storeUrl} />;
+  }
+
   // Offline on cold start (no previous WebView cache)
   if (!wasReady && isOffline && !session) {
     return <OfflineScreen onRetry={handleRetry} />;
@@ -222,6 +230,7 @@ function AppContent() {
         isOffline={isOffline}
         deepLinkUrl={deepLinkUrl}
         session={session}
+        updateBanner={updateStatus === 'soft' ? { storeUrl, onDismiss: dismissUpdate } : undefined}
       />
     </AnimatedScreen>
   );

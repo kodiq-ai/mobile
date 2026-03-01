@@ -4,6 +4,7 @@ import {
   BackHandler,
   Linking,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   View,
@@ -101,13 +102,19 @@ function buildNavigateJS(path: string): string {
   `;
 }
 
+interface UpdateBanner {
+  storeUrl: string | null;
+  onDismiss: () => void;
+}
+
 interface WebViewScreenProps {
   isOffline?: boolean;
   deepLinkUrl?: string | null;
   session: Session;
+  updateBanner?: UpdateBanner;
 }
 
-export function WebViewScreen({ isOffline, deepLinkUrl, session }: WebViewScreenProps) {
+export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }: WebViewScreenProps) {
   const webViewRef = useRef<WebView>(null);
   const canGoBackRef = useRef(false);
   const insets = useSafeAreaInsets();
@@ -271,6 +278,23 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session }: WebViewScreen
         </View>
       )}
 
+      {/* Soft update banner */}
+      {updateBanner && (
+        <Pressable
+          style={styles.updateBanner}
+          onPress={() => {
+            if (updateBanner.storeUrl) Linking.openURL(updateBanner.storeUrl);
+          }}
+        >
+          <Text style={styles.updateBannerText}>
+            Доступно обновление
+          </Text>
+          <Pressable onPress={updateBanner.onDismiss} hitSlop={8}>
+            <Text style={styles.updateBannerDismiss}>{'\u2715'}</Text>
+          </Pressable>
+        </Pressable>
+      )}
+
       {/* Native Header */}
       <NativeHeader
         config={navConfig}
@@ -357,5 +381,23 @@ const styles = StyleSheet.create({
   loading: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  updateBanner: {
+    backgroundColor: COLORS.accentDim,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  updateBannerText: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 11,
+    color: COLORS.accent,
+    letterSpacing: 0.5,
+  },
+  updateBannerDismiss: {
+    fontSize: 14,
+    color: COLORS.textMuted,
   },
 });
