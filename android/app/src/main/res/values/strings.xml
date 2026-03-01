@@ -1,3 +1,10 @@
 <resources>
     <string name="app_name">KodiqAcademy</string>
+    <!-- App Shortcuts -->
+    <string name="shortcut_review">Повторение</string>
+    <string name="shortcut_review_long">Интервальное повторение</string>
+    <string name="shortcut_dashboard">Прогресс</string>
+    <string name="shortcut_dashboard_long">Мой прогресс</string>
+    <string name="shortcut_search">Поиск</string>
+    <string name="shortcut_search_long">Поиск курсов</string>
 </resources>
