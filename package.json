@@ -7,7 +7,10 @@
     "ios": "react-native run-ios",
     "start": "react-native start",
     "clean": "cd android && ./gradlew clean && cd ..",
-    "pod-install": "cd ios && pod install && cd .."
+    "pod-install": "cd ios && pod install && cd ..",
+    "lint": "eslint .",
+    "format": "prettier --write '**/*.{ts,tsx,js,json}'",
+    "prepare": "husky"
   },
   "dependencies": {
     "@invertase/react-native-apple-authentication": "^2.5.1",
@@ -42,7 +45,26 @@
     "@react-native/metro-config": "0.84.1",
     "@react-native/typescript-config": "0.84.1",
     "@types/react": "^19.2.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "@react-native/eslint-config": "0.84.1",
+    "eslint": "^8.19.0",
+    "prettier": "2.8.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "@commitlint/cli": "^20.3.1",
+    "@commitlint/config-conventional": "^20.3.1"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css}": [
+      "prettier --write"
+    ],
+    "*.md": [
+      "prettier --write"
+    ]
   },
   "engines": {
     "node": ">= 22.11.0"
