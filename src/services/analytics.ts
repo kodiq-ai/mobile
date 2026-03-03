@@ -1,26 +1,38 @@
 import * as Sentry from '@sentry/react-native';
-import analytics from '@react-native-firebase/analytics';
-import crashlytics from '@react-native-firebase/crashlytics';
+import {
+  getAnalytics,
+  setAnalyticsCollectionEnabled,
+  setUserId as setAnalyticsUserId,
+  logEvent,
+} from '@react-native-firebase/analytics';
+import {
+  getCrashlytics,
+  setCrashlyticsCollectionEnabled,
+  setUserId as setCrashlyticsUserId,
+} from '@react-native-firebase/crashlytics';
+
+const analyticsInstance = getAnalytics();
+const crash = getCrashlytics();
 
 /** Initialize Firebase Analytics + Crashlytics, respecting consent */
 export async function initAnalytics(analyticsConsent = true): Promise<void> {
   // Crashlytics is essential — always enabled
-  await crashlytics().setCrashlyticsCollectionEnabled(true);
+  await setCrashlyticsCollectionEnabled(crash, true);
   // Firebase Analytics respects user consent
-  await analytics().setAnalyticsCollectionEnabled(analyticsConsent);
+  await setAnalyticsCollectionEnabled(analyticsInstance, analyticsConsent);
 }
 
 /** Update analytics collection based on consent change */
 export async function setAnalyticsConsent(enabled: boolean): Promise<void> {
-  await analytics().setAnalyticsCollectionEnabled(enabled);
+  await setAnalyticsCollectionEnabled(analyticsInstance, enabled);
 }
 
 /** Set user ID for Analytics, Crashlytics, and Sentry */
 export async function setAnalyticsUser(userId: string): Promise<void> {
   Sentry.setUser({ id: userId });
   await Promise.all([
-    analytics().setUserId(userId),
-    crashlytics().setUserId(userId),
+    setAnalyticsUserId(analyticsInstance, userId),
+    setCrashlyticsUserId(crash, userId),
   ]);
 }
 
@@ -28,14 +40,14 @@ export async function setAnalyticsUser(userId: string): Promise<void> {
 export async function clearAnalyticsUser(): Promise<void> {
   Sentry.setUser(null);
   await Promise.all([
-    analytics().setUserId(null),
-    crashlytics().setUserId(''),
+    setAnalyticsUserId(analyticsInstance, null),
+    setCrashlyticsUserId(crash, ''),
   ]);
 }
 
 /** Track screen view */
 export async function trackScreen(screenName: string): Promise<void> {
-  await analytics().logScreenView({
+  await logEvent(analyticsInstance, 'screen_view', {
     screen_name: screenName,
     screen_class: screenName,
   });
@@ -46,5 +58,5 @@ export async function trackEvent(
   name: string,
   params?: Record<string, string | number>,
 ): Promise<void> {
-  await analytics().logEvent(name, params);
+  await logEvent(analyticsInstance, name, params);
 }

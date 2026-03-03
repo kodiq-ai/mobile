@@ -1,10 +1,17 @@
-import messaging from '@react-native-firebase/messaging';
+import {
+  getMessaging,
+  requestPermission,
+  getToken,
+  onTokenRefresh as onFirebaseTokenRefresh,
+  AuthorizationStatus,
+} from '@react-native-firebase/messaging';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 import { ACADEMY_URL } from '../config';
 import { fetchWithRetry } from '../utils/fetch-retry';
 
+const msg = getMessaging();
 const STORAGE_KEY = 'fcm_token';
 const API_URL = `${ACADEMY_URL.replace('/academy', '')}/api/academy/push-token`;
 
@@ -14,14 +21,14 @@ const API_URL = `${ACADEMY_URL.replace('/academy', '')}/api/academy/push-token`;
  */
 export async function registerPushToken(accessToken?: string): Promise<void> {
   try {
-    const authStatus = await messaging().requestPermission();
+    const authStatus = await requestPermission(msg);
     const enabled =
-      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+      authStatus === AuthorizationStatus.AUTHORIZED ||
+      authStatus === AuthorizationStatus.PROVISIONAL;
 
     if (!enabled) return;
 
-    const token = await messaging().getToken();
+    const token = await getToken(msg);
     if (!token) return;
 
     // Skip if already registered with same token
@@ -87,7 +94,7 @@ export async function unregisterPushToken(accessToken?: string): Promise<void> {
 export function onTokenRefresh(
   getAccessToken: (() => string | null) | string | undefined,
 ): () => void {
-  return messaging().onTokenRefresh(async (newToken) => {
+  return onFirebaseTokenRefresh(msg, async (newToken) => {
     const oldToken = await AsyncStorage.getItem(STORAGE_KEY);
 
     const accessToken =

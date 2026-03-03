@@ -1,4 +1,8 @@
-import messaging from '@react-native-firebase/messaging';
+import {
+  getMessaging,
+  getInitialNotification,
+  onNotificationOpenedApp,
+} from '@react-native-firebase/messaging';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Linking, StatusBar, StyleSheet } from 'react-native';
 import { PostHogProvider, usePostHog } from 'posthog-react-native';
@@ -143,8 +147,7 @@ function AppContent() {
   // Deep links: push notifications + OAuth callback (kodiq://auth/callback)
   useEffect(() => {
     // App opened from killed state by notification
-    messaging()
-      .getInitialNotification()
+    getInitialNotification(getMessaging())
       .then((remoteMessage) => {
         if (remoteMessage?.data?.url) {
           setDeepLinkUrl(remoteMessage.data.url as string);
@@ -152,7 +155,8 @@ function AppContent() {
       });
 
     // Background notification tap
-    const unsubscribeNotification = messaging().onNotificationOpenedApp(
+    const unsubscribeNotification = onNotificationOpenedApp(
+      getMessaging(),
       (remoteMessage) => {
         if (remoteMessage.data?.url) {
           setDeepLinkUrl(remoteMessage.data.url as string);

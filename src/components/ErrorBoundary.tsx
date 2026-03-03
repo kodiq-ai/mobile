@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/react-native';
-import crashlytics from '@react-native-firebase/crashlytics';
+import { getCrashlytics, recordError } from '@react-native-firebase/crashlytics';
 import React, { Component, type ErrorInfo, type ReactNode } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { COLORS } from '../config';
@@ -20,7 +20,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    crashlytics().recordError(error, info.componentStack ?? undefined);
+    recordError(getCrashlytics(), error, info.componentStack ?? undefined);
     Sentry.captureException(error, { contexts: { react: { componentStack: info.componentStack } } });
   }
 
