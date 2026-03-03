@@ -5,7 +5,7 @@ interface KodiqLogoProps {
   size?: number;
 }
 
-/** Kodiq "K" icon — white K with cyan triangle accent */
+/** Kodiq "K" icon — white K with warm gold triangle accent */
 export function KodiqLogo({ size = 64 }: KodiqLogoProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 512 512" fill="none">
@@ -20,7 +20,7 @@ export function KodiqLogo({ size = 64 }: KodiqLogoProps) {
         />
         <Path
           d="M170.124 177.948L170.124 79L276.295 79L170.124 177.948Z"
-          fill="#49AAC7"
+          fill="#c4a882"
         />
       </G>
     </Svg>
