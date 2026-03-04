@@ -140,37 +140,66 @@ platform :ios do
 
     version = ENV["APP_VERSION"] || get_version_number(xcodeproj: "./ios/KodiqAcademy.xcodeproj")
 
-    # Step 1: Upload screenshots (independent of app version metadata)
-    deliver(
-      skip_binary_upload: true,
-      skip_screenshots: false,
-      skip_metadata: true,
-      overwrite_screenshots: true,
-      force: true,
-      precheck_include_in_app_purchases: false,
-      run_precheck_before_submit: false,
-      app_version: version,
-    )
+    # Upload screenshots + metadata using Spaceship API directly
+    # to avoid deliver's availableInNewTerritories bug (fastlane #21820)
+    require "spaceship"
+    token = Spaceship::ConnectAPI::Token.from(hash: lane_context[SharedValues::APP_STORE_CONNECT_API_KEY])
+    Spaceship::ConnectAPI.token = token
 
-    # Step 2: Upload metadata (may fail on first version due to
-    # review_attachment_file bug in deliver — handle gracefully)
-    begin
-      deliver(
-        skip_binary_upload: true,
-        skip_screenshots: true,
-        skip_metadata: false,
-        force: true,
-        precheck_include_in_app_purchases: false,
-        run_precheck_before_submit: false,
-        app_version: version,
-      )
-    rescue => e
-      if e.message.include?("No data")
-        UI.important("Metadata upload hit 'No data' bug (first version) — screenshots were uploaded successfully")
-      else
-        raise e
+    app = Spaceship::ConnectAPI::App.find("ai.kodiq")
+    UI.user_error!("App ai.kodiq not found") unless app
+
+    # Find or create the app store version
+    edit_version = app.get_edit_app_store_version
+    unless edit_version
+      edit_version = app.create_version!(platform: Spaceship::ConnectAPI::Platform::IOS, version_string: version)
+      UI.success("Created app store version #{version}")
+    end
+
+    # Upload localized metadata
+    %w[en-US ru].each do |locale|
+      localization = edit_version.get_app_store_version_localizations.find { |l| l.locale == locale }
+      next unless localization
+
+      meta_dir = "./fastlane/metadata/#{locale}"
+      attrs = {}
+      { "description.txt" => :description,
+        "keywords.txt" => :keywords,
+        "marketing_url.txt" => :marketing_url,
+        "name.txt" => :name,
+        "privacy_url.txt" => :privacy_policy_url,
+        "promotional_text.txt" => :promotional_text,
+        "subtitle.txt" => :subtitle,
+        "support_url.txt" => :support_url,
+      }.each do |file, key|
+        path = File.join(meta_dir, file)
+        attrs[key] = File.read(path).strip if File.exist?(path)
+      end
+
+      localization.update(attributes: attrs) unless attrs.empty?
+      UI.success("Updated metadata for #{locale}")
+
+      # Upload screenshots
+      screenshot_dir = "./fastlane/screenshots/#{locale}"
+      next unless File.directory?(screenshot_dir)
+
+      # Delete existing screenshots
+      existing = localization.get_app_screenshot_sets
+      existing.each do |set|
+        set.app_screenshots.each(&:delete!)
+      end
+
+      Dir.glob(File.join(screenshot_dir, "*.{png,jpg,jpeg}")).sort.each do |file|
+        # Determine display type from filename or default to 6.7"
+        display_type = Spaceship::ConnectAPI::AppScreenshotSet::DisplayType::APP_IPHONE_67
+        set = localization.get_app_screenshot_sets.find { |s| s.screenshot_display_type == display_type }
+        set ||= localization.create_app_screenshot_set(attributes: { screenshotDisplayType: display_type })
+        Spaceship::ConnectAPI::AppScreenshot.create(app_screenshot_set_id: set.id, path: file)
+        UI.success("Uploaded screenshot: #{File.basename(file)}")
       end
     end
+
+    UI.success("All metadata and screenshots uploaded to App Store Connect")
   end
 
   desc "Submit latest build for App Store review"
@@ -244,6 +273,9 @@ platform :android do
       metadata_path: "./fastlane/metadata/android",
       track: "internal",
       version_code: latest_vc,
+      # App is still in draft state (not yet published) —
+      # only draft releases are allowed on draft apps
+      release_status: "draft",
     )
   end
 
