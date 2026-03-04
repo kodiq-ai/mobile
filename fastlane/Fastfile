@@ -145,9 +145,12 @@ platform :ios do
       overwrite_screenshots: true,
       force: true,
       precheck_include_in_app_purchases: false,
+      run_precheck_before_submit: false,
       submission_information: {
         add_id_info_uses_idfa: false,
       },
+      # Create version automatically if it doesn't exist yet
+      app_version: ENV["APP_VERSION"] || get_version_number(xcodeproj: "./ios/KodiqAcademy.xcodeproj"),
     )
   end
 
@@ -211,7 +214,9 @@ platform :android do
       skip_upload_aab: true,
       skip_upload_changelogs: true,
       metadata_path: "./fastlane/metadata/android",
-      track: "internal",
+      # Use production track for metadata/screenshots (listing is shared,
+      # and internal track may have multiple draft releases causing errors)
+      track: "production",
     )
   end
 
