@@ -184,12 +184,21 @@ function AppContent() {
     (url: string) => {
       // OAuth callback: kodiq://auth/callback?code=xxx
       if (url.startsWith('kodiq://auth/callback')) {
-        const params = new URL(url);
-        const code = params.searchParams.get('code');
+        // new URL() doesn't support custom schemes — parse query string manually
+        const queryString = url.split('?')[1] ?? '';
+        const params = new URLSearchParams(queryString);
+        const code = params.get('code');
         if (code) {
-          supabase.auth.exchangeCodeForSession(code).catch(() => {
-            // Session exchange failed — stay on login
-          });
+          supabase.auth
+            .exchangeCodeForSession(code)
+            .then(({ error }) => {
+              if (error) {
+                console.error('[DeepLink] Session exchange failed:', error.message);
+              }
+            })
+            .catch((err) => {
+              console.error('[DeepLink] Session exchange error:', err);
+            });
         }
         return;
       }
