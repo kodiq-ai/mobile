@@ -138,37 +138,35 @@ platform :ios do
   lane :upload_metadata do
     api_key
 
+    version = ENV["APP_VERSION"] || get_version_number(xcodeproj: "./ios/KodiqAcademy.xcodeproj")
+
+    # Step 1: Upload screenshots (independent of app version metadata)
+    deliver(
+      skip_binary_upload: true,
+      skip_screenshots: false,
+      skip_metadata: true,
+      overwrite_screenshots: true,
+      force: true,
+      precheck_include_in_app_purchases: false,
+      run_precheck_before_submit: false,
+      app_version: version,
+    )
+
+    # Step 2: Upload metadata (may fail on first version due to
+    # review_attachment_file bug in deliver — handle gracefully)
     begin
       deliver(
         skip_binary_upload: true,
-        skip_screenshots: false,
+        skip_screenshots: true,
         skip_metadata: false,
-        overwrite_screenshots: true,
         force: true,
         precheck_include_in_app_purchases: false,
         run_precheck_before_submit: false,
-        submission_information: {
-          add_id_info_uses_idfa: false,
-        },
-        # Skip review info upload — causes "No data" error on first version
-        # because App Store Connect has no review attachment to parse yet
-        app_review_information: {},
-        app_version: ENV["APP_VERSION"] || get_version_number(xcodeproj: "./ios/KodiqAcademy.xcodeproj"),
+        app_version: version,
       )
     rescue => e
       if e.message.include?("No data")
-        UI.important("Deliver failed with 'No data' (likely first version) — retrying without review info")
-        deliver(
-          skip_binary_upload: true,
-          skip_screenshots: false,
-          skip_metadata: false,
-          overwrite_screenshots: true,
-          force: true,
-          precheck_include_in_app_purchases: false,
-          run_precheck_before_submit: false,
-          skip_app_version_update: true,
-          app_version: ENV["APP_VERSION"] || get_version_number(xcodeproj: "./ios/KodiqAcademy.xcodeproj"),
-        )
+        UI.important("Metadata upload hit 'No data' bug (first version) — screenshots were uploaded successfully")
       else
         raise e
       end
@@ -230,12 +228,12 @@ platform :android do
   lane :upload_metadata do
     # Find the latest version code in internal track to avoid
     # "More than one release" error when multiple drafts exist
-    google_play_track_version_codes(
+    version_codes = google_play_track_version_codes(
       json_key_data: ENV["GOOGLE_PLAY_SERVICE_ACCOUNT"],
       package_name: "ai.kodiq",
       track: "internal",
     )
-    latest_vc = lane_context[SharedValues::GOOGLE_PLAY_TRACK_VERSION_CODES]&.max
+    latest_vc = version_codes.map(&:to_i).max
 
     supply(
       json_key_data: ENV["GOOGLE_PLAY_SERVICE_ACCOUNT"],
