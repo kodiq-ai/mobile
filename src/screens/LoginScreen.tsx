@@ -8,7 +8,6 @@ import {
   View,
 } from 'react-native';
 
-import { signInWithApple, signInWithGoogle } from '../auth/oauth';
 import { useAuth } from '../auth/useAuth';
 import { AuthButton } from '../components/AuthButton';
 import { AuthDivider } from '../components/AuthDivider';
@@ -52,46 +51,12 @@ export function LoginScreen({ onNavigate }: LoginScreenProps) {
     }
   }, [email, password, signInWithEmail]);
 
-  const handleGoogleLogin = useCallback(async () => {
+  const handleOAuthLogin = useCallback(async (provider: 'google' | 'apple' | 'github') => {
     setLoading(true);
-    setLoadingProvider('google');
+    setLoadingProvider(provider);
     setError(null);
     try {
-      const result = await signInWithGoogle();
-      if (result.error) {
-        setError(translateError(result.error));
-      }
-    } catch {
-      setError('Ошибка входа через Google');
-    } finally {
-      setLoading(false);
-      setLoadingProvider(null);
-    }
-  }, []);
-
-  const handleAppleLogin = useCallback(async () => {
-    setLoading(true);
-    setLoadingProvider('apple');
-    setError(null);
-    try {
-      const result = await signInWithApple();
-      if (result.error) {
-        setError(translateError(result.error));
-      }
-    } catch {
-      setError('Ошибка входа через Apple');
-    } finally {
-      setLoading(false);
-      setLoadingProvider(null);
-    }
-  }, []);
-
-  const handleGitHubLogin = useCallback(async () => {
-    setLoading(true);
-    setLoadingProvider('github');
-    setError(null);
-    try {
-      const result = await signInWithOAuth('github');
+      const result = await signInWithOAuth(provider);
       if (result.error) {
         setError(translateError(result.error));
         return;
@@ -100,12 +65,16 @@ export function LoginScreen({ onNavigate }: LoginScreenProps) {
         await Linking.openURL(result.url);
       }
     } catch {
-      setError('Ошибка входа через GitHub');
+      setError(`Ошибка входа через ${provider}`);
     } finally {
       setLoading(false);
       setLoadingProvider(null);
     }
   }, [signInWithOAuth]);
+
+  const handleGitHubLogin = useCallback(() => handleOAuthLogin('github'), [handleOAuthLogin]);
+  const handleGoogleLogin = useCallback(() => handleOAuthLogin('google'), [handleOAuthLogin]);
+  const handleAppleLogin = useCallback(() => handleOAuthLogin('apple'), [handleOAuthLogin]);
 
   return (
     <AuthLayout title="Вход в" highlight="Academy" subtitle="Продолжайте обучение">

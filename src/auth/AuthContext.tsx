@@ -29,7 +29,7 @@ interface AuthContextValue {
     idToken: string,
     nonce?: string,
   ) => Promise<{ error?: string }>;
-  signInWithOAuth: (provider: 'github') => Promise<{
+  signInWithOAuth: (provider: 'github' | 'google' | 'apple') => Promise<{
     error?: string;
     url?: string;
   }>;
@@ -120,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  const signInWithOAuth = useCallback(async (provider: 'github') => {
+  const signInWithOAuth = useCallback(async (provider: 'github' | 'google' | 'apple') => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
