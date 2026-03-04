@@ -36,7 +36,7 @@ export const COLORS = {
  * Must match the client ID configured in Supabase Dashboard > Auth > Google Provider.
  * Get it from: https://console.cloud.google.com/apis/credentials (Web application type)
  */
-export const GOOGLE_WEB_CLIENT_ID = '883916650071-REPLACE_WITH_WEB_CLIENT_ID.apps.googleusercontent.com';
+export const GOOGLE_WEB_CLIENT_ID = '997202638066-0jj3v5i83njrd6u22cutu5topk8o5ilu.apps.googleusercontent.com';
 
 /** Sentry — Error Monitoring */
 export const SENTRY_DSN =
