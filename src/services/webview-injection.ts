@@ -45,17 +45,21 @@ export function buildSessionInjectionJS(session: Session): string {
         // 2. Chunked cookies for server-side Supabase (middleware)
         ${cookieStatements}
 
-        // 3. Disable overscroll (deferred — body may not exist yet)
+        console.log('[Native] Session injected');
+      } catch(e) {
+        console.error('[Native] Session injection failed', e);
+      }
+
+      // 3. Disable overscroll — separate try/catch so it never blocks session
+      try {
         if (document.body) {
           document.body.style.overscrollBehavior = 'none';
         } else {
           document.addEventListener('DOMContentLoaded', function() {
-            document.body.style.overscrollBehavior = 'none';
+            if (document.body) document.body.style.overscrollBehavior = 'none';
           });
         }
-      } catch(e) {
-        console.error('[Native] Session injection failed', e);
-      }
+      } catch(e) {}
       true;
     })();
   `;
@@ -71,9 +75,7 @@ export function buildNavigateJS(path: string): string {
         )} });
         window.dispatchEvent(new MessageEvent('message', { data: msg }));
       } catch(e) {
-        window.location.href = 'https://kodiq.ai/academy' + ${JSON.stringify(
-          path,
-        )};
+        window.location.href = 'https://kodiq.ai' + ${JSON.stringify(path)};
       }
       true;
     })();
@@ -84,13 +86,15 @@ export function buildNavigateJS(path: string): string {
 export const INJECTED_JS_NO_SESSION = `
   (function() {
     window.__KODIQ_NATIVE__ = true;
-    if (document.body) {
-      document.body.style.overscrollBehavior = 'none';
-    } else {
-      document.addEventListener('DOMContentLoaded', function() {
+    try {
+      if (document.body) {
         document.body.style.overscrollBehavior = 'none';
-      });
-    }
+      } else {
+        document.addEventListener('DOMContentLoaded', function() {
+          if (document.body) document.body.style.overscrollBehavior = 'none';
+        });
+      }
+    } catch(e) {}
     true;
   })();
 `;

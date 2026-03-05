@@ -1,5 +1,8 @@
-/** Base URL for the Academy web app */
-export const ACADEMY_URL = 'https://kodiq.ai/academy';
+/** Root domain for kodiq.ai (API base, deep links, cookie domain) */
+export const BASE_URL = 'https://kodiq.ai';
+
+/** WebView entry point — public academy page with NativeBridge */
+export const ACADEMY_URL = 'https://kodiq.ai/catalog';
 
 /** Server-driven navigation config endpoint */
 export const NAV_CONFIG_URL = 'https://kodiq.ai/api/academy/mobile-nav';
@@ -36,14 +39,16 @@ export const COLORS = {
  * Must match the client ID configured in Supabase Dashboard > Auth > Google Provider.
  * Get it from: https://console.cloud.google.com/apis/credentials (Web application type)
  */
-export const GOOGLE_WEB_CLIENT_ID = '997202638066-0jj3v5i83njrd6u22cutu5topk8o5ilu.apps.googleusercontent.com';
+export const GOOGLE_WEB_CLIENT_ID =
+  '997202638066-0jj3v5i83njrd6u22cutu5topk8o5ilu.apps.googleusercontent.com';
 
 /** Sentry — Error Monitoring */
 export const SENTRY_DSN =
   'https://51a81ca4a92130100b5ed88f706d3da8@o4510404075126784.ingest.de.sentry.io/4510966071820368';
 
 /** PostHog analytics */
-export const POSTHOG_API_KEY = 'phc_JmYTaumxd37YjQjPFJtjUEj9MiYkG9Fg9uQ2HgNbACf';
+export const POSTHOG_API_KEY =
+  'phc_JmYTaumxd37YjQjPFJtjUEj9MiYkG9Fg9uQ2HgNbACf';
 export const POSTHOG_HOST = 'https://us.i.posthog.com';
 
 /** Supabase configuration */

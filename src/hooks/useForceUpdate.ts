@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 
-import { ACADEMY_URL } from '../config';
+import { BASE_URL } from '../config';
 
-const VERSION_URL = `${ACADEMY_URL.replace('/academy', '')}/api/academy/mobile-version`;
+const VERSION_URL = `${BASE_URL}/api/academy/mobile-version`;
 const APP_VERSION = '1.0.0'; // Keep in sync with package.json
 
 export type UpdateStatus = 'ok' | 'soft' | 'force';
@@ -47,7 +47,8 @@ export function useForceUpdate() {
       if (!res.ok) return;
       const data: VersionResponse = await res.json();
 
-      const url = Platform.OS === 'ios' ? data.updateUrl.ios : data.updateUrl.android;
+      const url =
+        Platform.OS === 'ios' ? data.updateUrl.ios : data.updateUrl.android;
       setStoreUrl(url);
 
       if (compareSemver(APP_VERSION, data.minVersion) < 0) {
@@ -67,7 +68,7 @@ export function useForceUpdate() {
   }, [check]);
 
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (state) => {
+    const sub = AppState.addEventListener('change', state => {
       if (state === 'active') check();
     });
     return () => sub.remove();
