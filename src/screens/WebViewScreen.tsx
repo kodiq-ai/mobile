@@ -5,7 +5,6 @@ import {
   Linking,
   Platform,
   Pressable,
-  Share,
   StyleSheet,
   Text,
   View,
@@ -18,94 +17,19 @@ import type {
 } from 'react-native-webview';
 
 import { useAuth } from '../auth/useAuth';
-import { handleMilestoneForReview } from '../services/app-rating';
-import { ACADEMY_URL, ALLOWED_ORIGINS, COLORS, SUPABASE_PROJECT_REF } from '../config';
+import { ACADEMY_URL, ALLOWED_ORIGINS, COLORS } from '../config';
 import { DrawerMenu } from '../components/DrawerMenu';
 import { NativeHeader } from '../components/NativeHeader';
 import { NativeTabBar } from '../components/NativeTabBar';
 import { SkeletonLoader } from '../components/SkeletonLoader';
 import { useNavConfig } from '../hooks/useNavConfig';
 import type { WebToNativeMessage } from '../types/bridge';
-import { hapticSuccess } from '../utils/haptics';
-import { updateStreakWidget } from '../services/widget';
-
-const STORAGE_KEY = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
-const COOKIE_BASE = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
-
-/**
- * Build JS to inject session into WebView (localStorage + cookies).
- * Runs BEFORE page content loads so Supabase client picks up the session.
- */
-function buildSessionInjectionJS(session: Session): string {
-  const sessionJSON = JSON.stringify({
-    access_token: session.access_token,
-    refresh_token: session.refresh_token,
-    expires_in: session.expires_in,
-    expires_at: session.expires_at,
-    token_type: session.token_type,
-    user: session.user,
-  });
-
-  // Chunk the encoded session for cookies (max ~3500 chars per cookie)
-  const encoded = encodeURIComponent(sessionJSON);
-  const CHUNK_SIZE = 3500;
-  const chunks: string[] = [];
-  for (let i = 0; i < encoded.length; i += CHUNK_SIZE) {
-    chunks.push(encoded.slice(i, i + CHUNK_SIZE));
-  }
-
-  const cookieStatements = chunks
-    .map(
-      (chunk, i) =>
-        `document.cookie = '${COOKIE_BASE}.${i}=${chunk}; path=/; domain=.kodiq.ai; secure; samesite=lax; max-age=604800';`,
-    )
-    .join('\n');
-
-  return `
-    (function() {
-      try {
-        window.__KODIQ_NATIVE__ = true;
-        document.body.style.overscrollBehavior = 'none';
-
-        // 1. localStorage for client-side Supabase
-        localStorage.setItem('${STORAGE_KEY}', ${JSON.stringify(sessionJSON)});
-
-        // 2. Chunked cookies for server-side Supabase (middleware)
-        ${cookieStatements}
-
-        console.log('[Native] Session injected');
-      } catch(e) {
-        console.error('[Native] Session injection failed', e);
-      }
-      true;
-    })();
-  `;
-}
-
-/** Minimal JS when no session — just set native flag */
-const INJECTED_JS_NO_SESSION = `
-  (function() {
-    window.__KODIQ_NATIVE__ = true;
-    document.body.style.overscrollBehavior = 'none';
-    true;
-  })();
-`;
-
-/** Build JS to navigate WebView via Next.js router (SPA, no reload) */
-function buildNavigateJS(path: string): string {
-  // Use Next.js router.push for SPA navigation (no page reload)
-  return `
-    (function() {
-      try {
-        var msg = JSON.stringify({ type: 'navigate', path: ${JSON.stringify(path)} });
-        window.dispatchEvent(new MessageEvent('message', { data: msg }));
-      } catch(e) {
-        window.location.href = 'https://kodiq.ai/academy' + ${JSON.stringify(path)};
-      }
-      true;
-    })();
-  `;
-}
+import {
+  buildNavigateJS,
+  buildSessionInjectionJS,
+  INJECTED_JS_NO_SESSION,
+} from '../services/webview-injection';
+import { processWebViewMessage } from '../services/webview-bridge';
 
 interface UpdateBanner {
   storeUrl: string | null;
@@ -119,7 +43,12 @@ interface WebViewScreenProps {
   updateBanner?: UpdateBanner;
 }
 
-export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }: WebViewScreenProps) {
+export function WebViewScreen({
+  isOffline,
+  deepLinkUrl,
+  session,
+  updateBanner,
+}: WebViewScreenProps) {
   const webViewRef = useRef<WebView>(null);
   const canGoBackRef = useRef(false);
   const insets = useSafeAreaInsets();
@@ -149,7 +78,6 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }:
     if (Platform.OS !== 'android') return;
 
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
-      // Close drawer first
       if (drawerVisible) {
         setDrawerVisible(false);
         return true;
@@ -170,7 +98,9 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }:
       const fullUrl = deepLinkUrl.startsWith('http')
         ? deepLinkUrl
         : `https://kodiq.ai${deepLinkUrl}`;
-      const isAllowed = ALLOWED_ORIGINS.some((origin) => fullUrl.startsWith(origin));
+      const isAllowed = ALLOWED_ORIGINS.some(origin =>
+        fullUrl.startsWith(origin),
+      );
       if (!isAllowed) return;
       webViewRef.current.injectJavaScript(
         `window.location.href = ${JSON.stringify(fullUrl)}; true;`,
@@ -182,7 +112,6 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }:
     (navState: WebViewNavigation) => {
       canGoBackRef.current = navState.canGoBack;
 
-      // Extract path from URL for tab matching
       try {
         const url = new URL(navState.url);
         const path = url.pathname.replace(/^\/academy/, '') || '/';
@@ -191,7 +120,6 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }:
         // Invalid URL
       }
 
-      // Detect if WebView navigated to login page (session expired in web)
       if (navState.url.includes('/auth/login')) {
         signOut();
       }
@@ -203,39 +131,20 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }:
     (event: WebViewMessageEvent) => {
       try {
         const msg: WebToNativeMessage = JSON.parse(event.nativeEvent.data);
-        switch (msg.type) {
-          case 'logout':
-            signOut();
-            break;
-          case 'auth_state':
-            if (!msg.authenticated) signOut();
-            break;
-          case 'page_meta':
-            setPageTitle(msg.title);
-            setActivePath(msg.path);
-            setPageCanGoBack(msg.canGoBack);
-            if (!contentLoaded) setContentLoaded(true);
-            break;
-          case 'notification_count':
-            setNotificationCount(msg.count);
-            break;
-          case 'share':
-            Share.share({
-              title: msg.title,
-              message: [msg.text, msg.url].filter(Boolean).join('\n'),
-              ...(Platform.OS === 'ios' && msg.url ? { url: msg.url } : {}),
-            }).catch(() => {});
-            break;
-          case 'milestone':
-            hapticSuccess();
-            handleMilestoneForReview(msg.event);
-            break;
-          case 'streak_update':
-            void updateStreakWidget(msg.streak, msg.challengeDone);
-            break;
-          case 'navigation':
-            break;
-        }
+        processWebViewMessage(
+          msg,
+          {
+            onSignOut: signOut,
+            onPageMeta: (title, path, canGoBack) => {
+              setPageTitle(title);
+              setActivePath(path);
+              setPageCanGoBack(canGoBack);
+            },
+            onNotificationCount: setNotificationCount,
+            onContentLoaded: () => setContentLoaded(true),
+          },
+          contentLoaded,
+        );
       } catch {
         // Ignore non-JSON messages
       }
@@ -246,7 +155,7 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }:
   const handleShouldStartLoad = useCallback(
     (event: { url: string }): boolean => {
       const { url } = event;
-      return ALLOWED_ORIGINS.some((origin) => url.startsWith(origin));
+      return ALLOWED_ORIGINS.some(origin => url.startsWith(origin));
     },
     [],
   );
@@ -254,7 +163,6 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }:
   // Tab press → navigate WebView or toggle AI Mentor
   const handleTabPress = useCallback((path: string) => {
     if (path === '__ai_mentor__') {
-      // Dispatch CustomEvent that AiMentorEventBridge listens for on the web side
       webViewRef.current?.injectJavaScript(`
         (function() {
           window.dispatchEvent(new CustomEvent('toggle-ai-mentor'));
@@ -266,10 +174,7 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }:
     webViewRef.current?.injectJavaScript(buildNavigateJS(path));
   }, []);
 
-  // Header actions
-  const handleBurgerPress = useCallback(() => {
-    setDrawerVisible(true);
-  }, []);
+  const handleBurgerPress = useCallback(() => setDrawerVisible(true), []);
 
   const handleBackPress = useCallback(() => {
     if (canGoBackRef.current && webViewRef.current) {
@@ -285,18 +190,18 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }:
     webViewRef.current?.injectJavaScript(buildNavigateJS('/search'));
   }, []);
 
-  // Drawer navigation
-  const handleDrawerNavigate = useCallback((path: string, external?: boolean) => {
-    if (external) {
-      Linking.openURL(path);
-    } else {
-      webViewRef.current?.injectJavaScript(buildNavigateJS(path));
-    }
-  }, []);
+  const handleDrawerNavigate = useCallback(
+    (path: string, external?: boolean) => {
+      if (external) {
+        Linking.openURL(path);
+      } else {
+        webViewRef.current?.injectJavaScript(buildNavigateJS(path));
+      }
+    },
+    [],
+  );
 
-  const handleLogout = useCallback(() => {
-    signOut();
-  }, [signOut]);
+  const handleLogout = useCallback(() => signOut(), [signOut]);
 
   const injectedJS = buildSessionInjectionJS(session);
 
@@ -317,9 +222,7 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }:
             if (updateBanner.storeUrl) Linking.openURL(updateBanner.storeUrl);
           }}
         >
-          <Text style={styles.updateBannerText}>
-            Доступно обновление
-          </Text>
+          <Text style={styles.updateBannerText}>Доступно обновление</Text>
           <Pressable onPress={updateBanner.onDismiss} hitSlop={8}>
             <Text style={styles.updateBannerDismiss}>{'\u2715'}</Text>
           </Pressable>
@@ -349,21 +252,16 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }:
           onNavigationStateChange={handleNavigationStateChange}
           onMessage={handleMessage}
           onShouldStartLoadWithRequest={handleShouldStartLoad}
-          // Auth: cookies still shared for SSR compatibility
           sharedCookiesEnabled
-          // Cache
           cacheEnabled
           cacheMode={isOffline ? 'LOAD_CACHE_ELSE_NETWORK' : 'LOAD_DEFAULT'}
-          // UI
           allowsBackForwardNavigationGestures
           pullToRefreshEnabled={Platform.OS === 'android'}
           startInLoadingState
-          // Security
           javaScriptEnabled
           domStorageEnabled
           allowsInlineMediaPlayback
           mediaPlaybackRequiresUserAction={false}
-          // Scroll
           overScrollMode="never"
           scrollEnabled
         />

@@ -59,9 +59,6 @@ class MainApplication : Application(), ReactApplication {
       )
 
       manager.createNotificationChannels(channels)
-
-      // Remove legacy channel
-      manager.deleteNotificationChannel("kodiq_academy")
     }
   }
 }
