@@ -38,13 +38,21 @@ export function buildSessionInjectionJS(session: Session): string {
     (function() {
       try {
         window.__KODIQ_NATIVE__ = true;
-        document.body.style.overscrollBehavior = 'none';
 
         // 1. localStorage for client-side Supabase
         localStorage.setItem('${STORAGE_KEY}', ${JSON.stringify(sessionJSON)});
 
         // 2. Chunked cookies for server-side Supabase (middleware)
         ${cookieStatements}
+
+        // 3. Disable overscroll (deferred — body may not exist yet)
+        if (document.body) {
+          document.body.style.overscrollBehavior = 'none';
+        } else {
+          document.addEventListener('DOMContentLoaded', function() {
+            document.body.style.overscrollBehavior = 'none';
+          });
+        }
       } catch(e) {
         console.error('[Native] Session injection failed', e);
       }
@@ -76,7 +84,13 @@ export function buildNavigateJS(path: string): string {
 export const INJECTED_JS_NO_SESSION = `
   (function() {
     window.__KODIQ_NATIVE__ = true;
-    document.body.style.overscrollBehavior = 'none';
+    if (document.body) {
+      document.body.style.overscrollBehavior = 'none';
+    } else {
+      document.addEventListener('DOMContentLoaded', function() {
+        document.body.style.overscrollBehavior = 'none';
+      });
+    }
     true;
   })();
 `;
