@@ -44,7 +44,7 @@ export function processWebViewMessage(
       break;
     case 'milestone':
       hapticSuccess();
-      handleMilestoneForReview(msg.event);
+      void handleMilestoneForReview(msg.event);
       break;
     case 'streak_update':
       void updateStreakWidget(msg.streak, msg.challengeDone);

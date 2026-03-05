@@ -19,7 +19,8 @@ function isValidNavConfig(data: unknown): data is MobileNavConfig {
     if (!tab || typeof tab !== 'object') return false;
     const t = tab as Record<string, unknown>;
     if (typeof t.id !== 'string' || typeof t.path !== 'string') return false;
-    if (typeof t.icon !== 'string' || typeof t.labelFallback !== 'string') return false;
+    if (typeof t.icon !== 'string' || typeof t.labelFallback !== 'string')
+      return false;
     // Block dangerous URL schemes
     if (String(t.path).startsWith('javascript:')) return false;
   }
@@ -82,14 +83,14 @@ export function useNavConfig(): MobileNavConfig {
 
   // Load on mount
   useEffect(() => {
-    loadConfig();
+    void loadConfig();
   }, [loadConfig]);
 
   // Re-fetch when app comes to foreground
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (state) => {
+    const sub = AppState.addEventListener('change', state => {
       if (state === 'active') {
-        loadConfig();
+        void loadConfig();
       }
     });
     return () => sub.remove();

@@ -9,8 +9,6 @@ import {
   StyleSheet,
   Text,
   View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
   type ViewToken,
 } from 'react-native';
 
@@ -78,7 +76,9 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
     onComplete();
   }, [onComplete]);
 
-  const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
+  const viewabilityConfig = useRef({
+    viewAreaCoveragePercentThreshold: 50,
+  }).current;
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
       if (viewableItems[0]) {
@@ -89,28 +89,28 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
 
   const handleNext = useCallback(() => {
     if (activeIndex < SLIDES.length - 1) {
-      flatListRef.current?.scrollToIndex({ index: activeIndex + 1, animated: true });
+      flatListRef.current?.scrollToIndex({
+        index: activeIndex + 1,
+        animated: true,
+      });
     } else {
       void handleComplete();
     }
   }, [activeIndex, handleComplete]);
 
-  const renderSlide = useCallback(
-    ({ item }: { item: Slide }) => {
-      const Icon = getNavIcon(item.icon);
-      return (
-        <View style={styles.slide}>
-          <View style={styles.iconCircle}>
-            <Icon size={40} color={COLORS.accent} />
-          </View>
-          <Text style={styles.slideTitle}>{item.title}</Text>
-          <Text style={styles.slideSubtitle}>{item.subtitle}</Text>
-          <Text style={styles.slideDescription}>{item.description}</Text>
+  const renderSlide = useCallback(({ item }: { item: Slide }) => {
+    const Icon = getNavIcon(item.icon);
+    return (
+      <View style={styles.slide}>
+        <View style={styles.iconCircle}>
+          <Icon size={40} color={COLORS.accent} />
         </View>
-      );
-    },
-    [],
-  );
+        <Text style={styles.slideTitle}>{item.title}</Text>
+        <Text style={styles.slideSubtitle}>{item.subtitle}</Text>
+        <Text style={styles.slideDescription}>{item.description}</Text>
+      </View>
+    );
+  }, []);
 
   const isLastSlide = activeIndex === SLIDES.length - 1;
 
@@ -131,7 +131,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
         ref={flatListRef}
         data={SLIDES}
         renderItem={renderSlide}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
@@ -182,9 +182,7 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
 
         {/* CTA button */}
         <Pressable style={styles.ctaButton} onPress={handleNext}>
-          <Text style={styles.ctaText}>
-            {isLastSlide ? 'Начать' : 'Далее'}
-          </Text>
+          <Text style={styles.ctaText}>{isLastSlide ? 'Начать' : 'Далее'}</Text>
         </Pressable>
       </View>
     </View>

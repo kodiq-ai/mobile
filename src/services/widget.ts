@@ -1,4 +1,4 @@
-import { NativeModules, Platform } from 'react-native';
+import { NativeModules } from 'react-native';
 
 interface StreakWidgetModule {
   updateStreak(streak: number, challengeDone: boolean): Promise<boolean>;

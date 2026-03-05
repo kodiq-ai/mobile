@@ -35,7 +35,7 @@ export function useBiometric(isAuthenticated: boolean): UseBiometricResult {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    (async () => {
+    void (async () => {
       try {
         const supported = await Keychain.getSupportedBiometryType();
         setIsAvailable(supported !== null);
@@ -56,7 +56,7 @@ export function useBiometric(isAuthenticated: boolean): UseBiometricResult {
   useEffect(() => {
     if (!isAuthenticated || !isEnabled) return;
 
-    const subscription = AppState.addEventListener('change', (nextState) => {
+    const subscription = AppState.addEventListener('change', nextState => {
       if (nextState === 'background' || nextState === 'inactive') {
         backgroundTimestamp.current = Date.now();
       } else if (nextState === 'active' && backgroundTimestamp.current) {

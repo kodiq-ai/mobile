@@ -121,7 +121,7 @@ export function WebViewScreen({
       }
 
       if (navState.url.includes('/auth/login')) {
-        signOut();
+        void signOut();
       }
     },
     [signOut],
@@ -130,10 +130,12 @@ export function WebViewScreen({
   const handleMessage = useCallback(
     (event: WebViewMessageEvent) => {
       try {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- untyped
         const msg: WebToNativeMessage = JSON.parse(event.nativeEvent.data);
         processWebViewMessage(
           msg,
           {
+            // eslint-disable-next-line @typescript-eslint/no-misused-promises -- untyped
             onSignOut: signOut,
             onPageMeta: (title, path, canGoBack) => {
               setPageTitle(title);
@@ -193,7 +195,7 @@ export function WebViewScreen({
   const handleDrawerNavigate = useCallback(
     (path: string, external?: boolean) => {
       if (external) {
-        Linking.openURL(path);
+        void Linking.openURL(path);
       } else {
         webViewRef.current?.injectJavaScript(buildNavigateJS(path));
       }
@@ -219,7 +221,8 @@ export function WebViewScreen({
         <Pressable
           style={styles.updateBanner}
           onPress={() => {
-            if (updateBanner.storeUrl) Linking.openURL(updateBanner.storeUrl);
+            if (updateBanner.storeUrl)
+              void Linking.openURL(updateBanner.storeUrl);
           }}
         >
           <Text style={styles.updateBannerText}>Доступно обновление</Text>

@@ -61,7 +61,7 @@ function AppContent() {
 
   // Check onboarding status
   useEffect(() => {
-    isOnboardingDone().then(done => setShowOnboarding(!done));
+    void isOnboardingDone().then(done => setShowOnboarding(!done));
   }, []);
 
   // Hide splash after minimum display time (matches connectivity timer)
@@ -89,7 +89,7 @@ function AppContent() {
     (screen: AuthScreen) => {
       setAuthScreen(screen);
       void trackScreen(screen);
-      posthog.screen(screen);
+      void posthog.screen(screen);
     },
     [posthog],
   );

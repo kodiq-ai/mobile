@@ -30,7 +30,7 @@ export function useSessionAnalytics(
 
   // Load consent + initialize analytics respecting consent
   useEffect(() => {
-    loadConsent().then(saved => {
+    void loadConsent().then(saved => {
       setConsent(saved);
       setConsentLoaded(true);
       void initAnalytics(saved?.analytics ?? false);
@@ -41,10 +41,10 @@ export function useSessionAnalytics(
   useEffect(() => {
     if (!consentLoaded) return;
     if (consent?.analytics) {
-      posthog.optIn();
+      void posthog.optIn();
       void posthog.register({ $product: 'Kodiq App' });
     } else {
-      posthog.optOut();
+      void posthog.optOut();
     }
   }, [consent, consentLoaded, posthog]);
 
