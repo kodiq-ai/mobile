@@ -258,6 +258,7 @@ platform :android do
     supply(
       json_key_data: ENV["GOOGLE_PLAY_SERVICE_ACCOUNT"],
       package_name: "ai.kodiq",
+      track: "internal",
       skip_upload_apk: true,
       skip_upload_aab: true,
       skip_upload_changelogs: true,
