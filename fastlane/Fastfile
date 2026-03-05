@@ -301,48 +301,36 @@ platform :android do
       end
     end
 
-    # Validate first for detailed error info, then commit
+    # Delete draft release from internal track before committing
     begin
-      publisher.validate_edit(package, edit_id)
-      UI.success("Edit validation passed")
+      track = publisher.get_edit_track(package, edit_id, "internal")
+      if track&.releases&.any? { |r| r.status == "draft" }
+        # Keep only non-draft releases
+        track.releases = track.releases.reject { |r| r.status == "draft" }
+        publisher.update_edit_track(package, edit_id, "internal", track)
+        UI.important("Removed draft release(s) from internal track")
+      end
     rescue Google::Apis::ClientError => e
-      UI.important("Validation error: #{e.message}")
-      # Try to get more details from the response
-      UI.important("Response body: #{e.body}") if e.respond_to?(:body)
-      UI.important("Status code: #{e.status_code}") if e.respond_to?(:status_code)
-
-      # Debug: dump all track states in this edit
-      %w[production beta alpha internal].each do |track_name|
-        begin
-          track = publisher.get_edit_track(package, edit_id, track_name)
-          next unless track&.releases&.any?
-          track.releases.each do |r|
-            UI.important("[TRACK] #{track_name}: name=#{r.name} status=#{r.status} fraction=#{r.user_fraction} codes=#{r.version_codes&.join(',')}")
-          end
-        rescue Google::Apis::ClientError => te
-          UI.message("[TRACK] #{track_name}: #{te.message}")
-        end
-      end
-
-      # Attempt fix: set draft → completed in internal track
-      begin
-        track = publisher.get_edit_track(package, edit_id, "internal")
-        if track&.releases&.any? { |r| r.status == "draft" }
-          track.releases.each do |r|
-            if r.status == "draft"
-              r.status = "completed"
-              UI.important("Setting draft release #{r.name} (codes: #{r.version_codes&.join(',')}) to completed")
-            end
-          end
-          publisher.update_edit_track(package, edit_id, "internal", track)
-        end
-      rescue Google::Apis::ClientError => fix_e
-        UI.important("Fix attempt error: #{fix_e.message}")
-      end
+      UI.important("Track cleanup: #{e.message}")
     end
 
-    publisher.commit_edit(package, edit_id)
-    UI.success("Google Play metadata + screenshots committed")
+    # Get raw error details via direct HTTP call
+    begin
+      publisher.commit_edit(package, edit_id)
+      UI.success("Google Play metadata + screenshots committed")
+    rescue Google::Apis::ClientError => e
+      # Extract detailed error from the underlying HTTP response
+      UI.error("commit_edit failed: #{e.message}")
+      if e.respond_to?(:body) && e.body
+        # Mask any secrets but show error structure
+        body = e.body.to_s
+        UI.error("Error details: #{body[0..500]}")
+      end
+      if e.respond_to?(:header) && e.header
+        UI.error("Headers: #{e.header}")
+      end
+      raise e
+    end
   end
 
   desc "Promote internal build to production"
