@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Platform, StyleSheet, View } from 'react-native';
+import { Animated, StyleSheet, View } from 'react-native';
 
 import { COLORS } from '../config';
 
@@ -61,10 +61,15 @@ export function SkeletonLoader() {
       <ShimmerBlock width={180} height={24} style={styles.title} />
 
       {/* Search bar skeleton */}
-      <ShimmerBlock width="100%" height={40} borderRadius={10} style={styles.search} />
+      <ShimmerBlock
+        width="100%"
+        height={40}
+        borderRadius={10}
+        style={styles.search}
+      />
 
       {/* Course cards grid (2 columns, 3 rows) */}
-      {[0, 1, 2].map((row) => (
+      {[0, 1, 2].map(row => (
         <View key={row} style={styles.cardRow}>
           <View style={styles.card}>
             <ShimmerBlock width="100%" height={100} borderRadius={10} />

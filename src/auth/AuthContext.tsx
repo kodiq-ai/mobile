@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Restore persisted session
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
+    void supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s);
       setIsLoading(false);
     });
@@ -97,18 +97,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resetPassword = useCallback(async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://kodiq.ai/auth/callback?next=/auth/reset-password/update',
+      redirectTo:
+        'https://kodiq.ai/auth/callback?next=/auth/reset-password/update',
     });
     if (error) return { error: error.message };
     return {};
   }, []);
 
   const signInWithIdToken = useCallback(
-    async (
-      provider: 'google' | 'apple',
-      idToken: string,
-      nonce?: string,
-    ) => {
+    async (provider: 'google' | 'apple', idToken: string, nonce?: string) => {
       const { error } = await supabase.auth.signInWithIdToken({
         provider,
         token: idToken,
@@ -120,17 +117,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  const signInWithOAuth = useCallback(async (provider: 'github' | 'google' | 'apple') => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: 'kodiq://auth/callback',
-        skipBrowserRedirect: true,
-      },
-    });
-    if (error) return { error: error.message };
-    return { url: data.url };
-  }, []);
+  const signInWithOAuth = useCallback(
+    async (provider: 'github' | 'google' | 'apple') => {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: 'kodiq://auth/callback',
+          skipBrowserRedirect: true,
+        },
+      });
+      if (error) return { error: error.message };
+      return { url: data.url };
+    },
+    [],
+  );
 
   const value = useMemo(
     () => ({

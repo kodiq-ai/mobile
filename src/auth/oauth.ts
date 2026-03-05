@@ -57,8 +57,9 @@ export async function signInWithApple(): Promise<{ error?: string }> {
 
   try {
     // Dynamic import — only available on iOS
-    const { appleAuth } =
-      await import('@invertase/react-native-apple-authentication');
+    const { appleAuth } = await import(
+      '@invertase/react-native-apple-authentication'
+    );
 
     // Generate nonce for Supabase verification
     const rawNonce = generateNonce();
@@ -99,14 +100,15 @@ export async function signInWithApple(): Promise<{ error?: string }> {
 // ─── Helpers ───────────────────────────────────
 
 // Hermes exposes Web Crypto API at runtime but RN types don't declare it
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- Hermes Web Crypto not in RN types
 const crypto = (globalThis as any).crypto as {
   getRandomValues: (array: Uint8Array) => Uint8Array;
   subtle: { digest: (algo: string, data: Uint8Array) => Promise<ArrayBuffer> };
 };
 
 function generateNonce(length = 32): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const chars =
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let result = '';
   const array = new Uint8Array(length);
   crypto.getRandomValues(array);
@@ -118,11 +120,9 @@ function generateNonce(length = 32): string {
 
 async function sha256(input: string): Promise<string> {
   // Hermes 0.76+ supports SubtleCrypto
-  const data = new Uint8Array(
-    Array.from(input).map((c) => c.charCodeAt(0)),
-  );
+  const data = new Uint8Array(Array.from(input).map(c => c.charCodeAt(0)));
   const hash = await crypto.subtle.digest('SHA-256', data);
   return Array.from(new Uint8Array(hash))
-    .map((b) => b.toString(16).padStart(2, '0'))
+    .map(b => b.toString(16).padStart(2, '0'))
     .join('');
 }

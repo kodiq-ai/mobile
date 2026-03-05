@@ -45,6 +45,7 @@ export function useForceUpdate() {
       clearTimeout(timer);
 
       if (!res.ok) return;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- untyped
       const data: VersionResponse = await res.json();
 
       const url =
@@ -64,12 +65,12 @@ export function useForceUpdate() {
   }, []);
 
   useEffect(() => {
-    check();
+    void check();
   }, [check]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', state => {
-      if (state === 'active') check();
+      if (state === 'active') void check();
     });
     return () => sub.remove();
   }, [check]);

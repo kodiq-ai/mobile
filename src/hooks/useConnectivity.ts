@@ -20,7 +20,7 @@ export function useConnectivity(): ConnectivityState {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      connectivityService.isConnected().then(online => {
+      void connectivityService.isConnected().then(online => {
         setConnectivityReady(true);
         setIsOffline(!online);
         if (online) setWasReady(true);
@@ -42,7 +42,7 @@ export function useConnectivity(): ConnectivityState {
   }, [wasReady]);
 
   const retry = useCallback(() => {
-    connectivityService.isConnected().then(online => {
+    void connectivityService.isConnected().then(online => {
       setIsOffline(!online);
       if (online) {
         setConnectivityReady(true);

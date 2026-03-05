@@ -1,5 +1,12 @@
 import React from 'react';
-import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Linking,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from '../config';
@@ -25,7 +32,7 @@ export function ForceUpdateScreen({ storeUrl }: ForceUpdateScreenProps) {
       <Pressable
         style={styles.button}
         onPress={() => {
-          if (storeUrl) Linking.openURL(storeUrl);
+          if (storeUrl) void Linking.openURL(storeUrl);
         }}
       >
         <Text style={styles.buttonText}>Обновить</Text>

@@ -26,10 +26,13 @@ export function useDeepLinks(): { deepLinkUrl: string | null } {
           .exchangeCodeForSession(code)
           .then(({ error }) => {
             if (error) {
-              console.error('[DeepLink] Session exchange failed:', error.message);
+              console.error(
+                '[DeepLink] Session exchange failed:',
+                error.message,
+              );
             }
           })
-          .catch((err) => {
+          .catch(err => {
             console.error('[DeepLink] Session exchange error:', err);
           });
       }
@@ -45,7 +48,7 @@ export function useDeepLinks(): { deepLinkUrl: string | null } {
     const messaging = getMessaging();
 
     // App opened from killed state by notification
-    getInitialNotification(messaging).then(remoteMessage => {
+    void getInitialNotification(messaging).then(remoteMessage => {
       if (remoteMessage?.data?.url) {
         setDeepLinkUrl(remoteMessage.data.url as string);
       }
@@ -67,7 +70,7 @@ export function useDeepLinks(): { deepLinkUrl: string | null } {
     });
 
     // Check if app was opened with a URL (cold start)
-    Linking.getInitialURL().then(url => {
+    void Linking.getInitialURL().then(url => {
       if (url) handleDeepLink(url);
     });
 
