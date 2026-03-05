@@ -301,36 +301,26 @@ platform :android do
       end
     end
 
-    # Delete draft release from internal track before committing
-    begin
-      track = publisher.get_edit_track(package, edit_id, "internal")
-      if track&.releases&.any? { |r| r.status == "draft" }
-        # Keep only non-draft releases
-        track.releases = track.releases.reject { |r| r.status == "draft" }
-        publisher.update_edit_track(package, edit_id, "internal", track)
-        UI.important("Removed draft release(s) from internal track")
+    # App is in "draft" state (never published) — only draft releases allowed.
+    # Remove any non-draft releases (e.g. completed "Initial release") that block commit.
+    %w[production beta alpha internal].each do |track_name|
+      begin
+        track = publisher.get_edit_track(package, edit_id, track_name)
+        next unless track&.releases&.any?
+
+        non_draft = track.releases.select { |r| r.status != "draft" }
+        next if non_draft.empty?
+
+        track.releases = track.releases.select { |r| r.status == "draft" }
+        publisher.update_edit_track(package, edit_id, track_name, track)
+        UI.important("Removed #{non_draft.count} non-draft release(s) from #{track_name}")
+      rescue Google::Apis::ClientError => e
+        UI.message("Track #{track_name}: #{e.message}")
       end
-    rescue Google::Apis::ClientError => e
-      UI.important("Track cleanup: #{e.message}")
     end
 
-    # Get raw error details via direct HTTP call
-    begin
-      publisher.commit_edit(package, edit_id)
-      UI.success("Google Play metadata + screenshots committed")
-    rescue Google::Apis::ClientError => e
-      # Extract detailed error from the underlying HTTP response
-      UI.error("commit_edit failed: #{e.message}")
-      if e.respond_to?(:body) && e.body
-        # Mask any secrets but show error structure
-        body = e.body.to_s
-        UI.error("Error details: #{body[0..500]}")
-      end
-      if e.respond_to?(:header) && e.header
-        UI.error("Headers: #{e.header}")
-      end
-      raise e
-    end
+    publisher.commit_edit(package, edit_id)
+    UI.success("Google Play metadata + screenshots committed")
   end
 
   desc "Promote internal build to production"
