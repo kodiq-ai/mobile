@@ -1,36 +1,28 @@
-import {
-  getMessaging,
-  getInitialNotification,
-  onNotificationOpenedApp,
-} from '@react-native-firebase/messaging';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, Linking, StatusBar, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Animated, StatusBar, StyleSheet } from 'react-native';
 import { PostHogProvider, usePostHog } from 'posthog-react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthProvider } from './src/auth/AuthContext';
-import { supabase } from './src/auth/supabase';
 import { useAuth } from './src/auth/useAuth';
 import { AnimatedScreen } from './src/components/AnimatedScreen';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { COLORS, POSTHOG_API_KEY, POSTHOG_HOST } from './src/config';
+import { useConnectivity } from './src/hooks/useConnectivity';
+import { useDeepLinks } from './src/hooks/useDeepLinks';
 import { useForceUpdate } from './src/hooks/useForceUpdate';
-import { ForceUpdateScreen } from './src/screens/ForceUpdateScreen';
-import {
-  clearAnalyticsUser,
-  initAnalytics,
-  setAnalyticsConsent,
-  setAnalyticsUser,
-  trackScreen,
-} from './src/services/analytics';
+import { useSessionAnalytics } from './src/hooks/useSessionAnalytics';
+import { useSplashFade } from './src/hooks/useSplashFade';
+import { setAnalyticsConsent, trackScreen } from './src/services/analytics';
 import {
   type ConsentChoices,
   getDefaultChoices,
-  loadConsent,
   saveConsent,
 } from './src/services/consent';
+import { BiometricLockScreen } from './src/screens/BiometricLockScreen';
 import { ConsentScreen } from './src/screens/ConsentScreen';
 import { EmailSentScreen } from './src/screens/EmailSentScreen';
+import { ForceUpdateScreen } from './src/screens/ForceUpdateScreen';
 import { ForgotPasswordScreen } from './src/screens/ForgotPasswordScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { OfflineScreen } from './src/screens/OfflineScreen';
@@ -40,12 +32,10 @@ import {
 } from './src/screens/OnboardingScreen';
 import { RegisterScreen } from './src/screens/RegisterScreen';
 import { SplashScreen } from './src/screens/SplashScreen';
-import { BiometricLockScreen } from './src/screens/BiometricLockScreen';
 import { WebViewScreen } from './src/screens/WebViewScreen';
 import { WhatsNewModal } from './src/components/WhatsNewModal';
 import { useBiometric } from './src/hooks/useBiometric';
 import { useWhatsNew } from './src/hooks/useWhatsNew';
-import { connectivityService } from './src/services/connectivity';
 import { onTokenRefresh, registerPushToken } from './src/services/push';
 
 type AuthScreen = 'login' | 'register' | 'forgot' | 'email-sent';
@@ -55,195 +45,70 @@ function AppContent() {
   const posthog = usePostHog();
   const biometric = useBiometric(!!session);
   const whatsNew = useWhatsNew();
-  const accessTokenRef = useRef<string | null>(null);
-  const { status: updateStatus, storeUrl, dismiss: dismissUpdate } = useForceUpdate();
-  const [connectivityReady, setConnectivityReady] = useState(false);
-  const [isOffline, setIsOffline] = useState(false);
-  const [wasReady, setWasReady] = useState(false);
-  const [deepLinkUrl, setDeepLinkUrl] = useState<string | null>(null);
+  const {
+    status: updateStatus,
+    storeUrl,
+    dismiss: dismissUpdate,
+  } = useForceUpdate();
+
+  const connectivity = useConnectivity();
+  const { deepLinkUrl } = useDeepLinks();
+  const analytics = useSessionAnalytics(session, posthog);
+
   const [authScreen, setAuthScreen] = useState<AuthScreen>('login');
   const [showSplash, setShowSplash] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
-  const [consent, setConsent] = useState<ConsentChoices | null>(null);
-  const [consentLoaded, setConsentLoaded] = useState(false);
-
-  // Load consent + initialize analytics respecting consent
-  useEffect(() => {
-    loadConsent().then((saved) => {
-      setConsent(saved);
-      setConsentLoaded(true);
-      void initAnalytics(saved?.analytics ?? false);
-    });
-  }, []);
 
   // Check onboarding status
   useEffect(() => {
-    isOnboardingDone().then((done) => setShowOnboarding(!done));
+    isOnboardingDone().then(done => setShowOnboarding(!done));
   }, []);
 
-  // Apply consent to PostHog
+  // Hide splash after minimum display time (matches connectivity timer)
   useEffect(() => {
-    if (!consentLoaded) return;
-    if (consent?.analytics) {
-      posthog.optIn();
-      void posthog.register({ $product: "Kodiq App" });
-    } else {
-      posthog.optOut();
-    }
-  }, [consent, consentLoaded, posthog]);
-
-  // Set/clear analytics user when session changes (Firebase + PostHog)
-  useEffect(() => {
-    if (session?.user?.id) {
-      void setAnalyticsUser(session.user.id);
-      posthog.identify(session.user.id, {
-        ...(session.user.email ? { email: session.user.email } : {}),
-        source: 'academy-mobile',
-      });
-    } else {
-      void clearAnalyticsUser();
-      posthog.reset();
-    }
-  }, [session?.user?.id, posthog]);
-
-  // Splash timer + connectivity check
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      connectivityService.isConnected().then((online) => {
-        setConnectivityReady(true);
-        setIsOffline(!online);
-        if (online) setWasReady(true);
-      });
-      setShowSplash(false);
-    }, 1500);
-
-    const unsubscribe = connectivityService.subscribe((online) => {
-      setIsOffline(!online);
-      if (online && !wasReady) {
-        setConnectivityReady(true);
-        setWasReady(true);
-      }
-    });
-
-    return () => {
-      clearTimeout(timer);
-      unsubscribe();
-    };
-  }, [wasReady]);
-
-  // Keep access token ref fresh for push service callbacks
-  useEffect(() => {
-    accessTokenRef.current = session?.access_token ?? null;
-  }, [session]);
+    const timer = setTimeout(() => setShowSplash(false), 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Push token registration when authenticated
   useEffect(() => {
-    if (!session || !connectivityReady || isOffline) return;
+    if (!session || !connectivity.connectivityReady || connectivity.isOffline)
+      return;
     void registerPushToken(session.access_token);
-    const unsubscribeTokenRefresh = onTokenRefresh(() => accessTokenRef.current);
-    return () => unsubscribeTokenRefresh();
-  }, [session, connectivityReady, isOffline]);
-
-  // Deep links: push notifications + OAuth callback (kodiq://auth/callback)
-  useEffect(() => {
-    // App opened from killed state by notification
-    getInitialNotification(getMessaging())
-      .then((remoteMessage) => {
-        if (remoteMessage?.data?.url) {
-          setDeepLinkUrl(remoteMessage.data.url as string);
-        }
-      });
-
-    // Background notification tap
-    const unsubscribeNotification = onNotificationOpenedApp(
-      getMessaging(),
-      (remoteMessage) => {
-        if (remoteMessage.data?.url) {
-          setDeepLinkUrl(remoteMessage.data.url as string);
-        }
-      },
+    const unsubscribeTokenRefresh = onTokenRefresh(
+      () => analytics.accessTokenRef.current,
     );
+    return () => unsubscribeTokenRefresh();
+    // analytics.accessTokenRef is a stable ref — no need to re-run on change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, connectivity.connectivityReady, connectivity.isOffline]);
 
-    // Handle kodiq:// deep links (OAuth callback + push)
-    const linkingSubscription = Linking.addEventListener('url', (event) => {
-      handleDeepLink(event.url);
-    });
+  const splash = useSplashFade(showSplash, isLoading);
 
-    // Check if app was opened with a URL (cold start)
-    Linking.getInitialURL().then((url) => {
-      if (url) handleDeepLink(url);
-    });
-
-    return () => {
-      unsubscribeNotification();
-      linkingSubscription.remove();
-    };
-  }, []);
-
-  const handleDeepLink = useCallback(
-    (url: string) => {
-      // OAuth callback: kodiq://auth/callback?code=xxx
-      if (url.startsWith('kodiq://auth/callback')) {
-        // new URL() doesn't support custom schemes — parse query string manually
-        const queryString = url.split('?')[1] ?? '';
-        const params = new URLSearchParams(queryString);
-        const code = params.get('code');
-        if (code) {
-          supabase.auth
-            .exchangeCodeForSession(code)
-            .then(({ error }) => {
-              if (error) {
-                console.error('[DeepLink] Session exchange failed:', error.message);
-              }
-            })
-            .catch((err) => {
-              console.error('[DeepLink] Session exchange error:', err);
-            });
-        }
-        return;
-      }
-
-      // Regular deep link (push notification URL)
-      const path = url.replace(/^kodiq:\/\//, '/');
-      setDeepLinkUrl(path);
+  const handleAuthNavigate = useCallback(
+    (screen: AuthScreen) => {
+      setAuthScreen(screen);
+      void trackScreen(screen);
+      posthog.screen(screen);
     },
-    [],
+    [posthog],
   );
 
-  const handleRetry = useCallback(() => {
-    connectivityService.isConnected().then((online) => {
-      setIsOffline(!online);
-      if (online) {
-        setConnectivityReady(true);
-        setWasReady(true);
-      }
-    });
-  }, []);
-
-  const handleAuthNavigate = useCallback((screen: AuthScreen) => {
-    setAuthScreen(screen);
-    void trackScreen(screen);
-    posthog.screen(screen);
-  }, [posthog]);
-
-  // Splash fade-out animation
-  const splashOpacity = useRef(new Animated.Value(1)).current;
-  const [splashVisible, setSplashVisible] = useState(true);
-
-  useEffect(() => {
-    if (!showSplash && !isLoading && splashVisible) {
-      Animated.timing(splashOpacity, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }).start(() => setSplashVisible(false));
-    }
-  }, [showSplash, isLoading, splashVisible, splashOpacity]);
+  const handleConsentSave = useCallback(
+    (choices: ConsentChoices) => {
+      analytics.setConsent(choices);
+      void saveConsent(choices);
+      void setAnalyticsConsent(choices.analytics);
+    },
+    [analytics],
+  );
 
   // Show splash with fade-out
-  if (splashVisible) {
+  if (splash.splashVisible) {
     return (
-      <Animated.View style={[appStyles.fill, { opacity: splashOpacity }]}>
+      <Animated.View
+        style={[appStyles.fill, { opacity: splash.splashOpacity }]}
+      >
         <SplashScreen />
       </Animated.View>
     );
@@ -255,8 +120,8 @@ function AppContent() {
   }
 
   // Offline on cold start (no previous WebView cache)
-  if (!wasReady && isOffline && !session) {
-    return <OfflineScreen onRetry={handleRetry} />;
+  if (!connectivity.wasReady && connectivity.isOffline && !session) {
+    return <OfflineScreen onRetry={connectivity.retry} />;
   }
 
   // Onboarding — first launch only
@@ -269,16 +134,12 @@ function AppContent() {
   }
 
   // Consent screen — after onboarding, before auth
-  if (consentLoaded && !consent) {
+  if (analytics.consentLoaded && !analytics.consent) {
     return (
       <AnimatedScreen screenKey="consent">
         <ConsentScreen
           initialChoices={getDefaultChoices()}
-          onSave={(choices) => {
-            setConsent(choices);
-            void saveConsent(choices);
-            void setAnalyticsConsent(choices.analytics);
-          }}
+          onSave={handleConsentSave}
         />
       </AnimatedScreen>
     );
@@ -305,10 +166,7 @@ function AppContent() {
   // Biometric lock gate
   if (biometric.state === 'locked' || biometric.state === 'prompting') {
     return (
-      <BiometricLockScreen
-        onUnlock={biometric.unlock}
-        onSignOut={signOut}
-      />
+      <BiometricLockScreen onUnlock={biometric.unlock} onSignOut={signOut} />
     );
   }
 
@@ -316,10 +174,14 @@ function AppContent() {
   return (
     <AnimatedScreen screenKey="webview">
       <WebViewScreen
-        isOffline={isOffline}
+        isOffline={connectivity.isOffline}
         deepLinkUrl={deepLinkUrl}
         session={session}
-        updateBanner={updateStatus === 'soft' ? { storeUrl, onDismiss: dismissUpdate } : undefined}
+        updateBanner={
+          updateStatus === 'soft'
+            ? { storeUrl, onDismiss: dismissUpdate }
+            : undefined
+        }
       />
       <WhatsNewModal
         visible={whatsNew.shouldShow}

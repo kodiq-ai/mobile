@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 import { ACADEMY_URL } from '../config';
+import { buildAuthHeaders } from '../utils/auth-headers';
 import { fetchWithRetry } from '../utils/fetch-retry';
 
 const msg = getMessaging();
@@ -35,21 +36,18 @@ export async function registerPushToken(accessToken?: string): Promise<void> {
     const cachedToken = await AsyncStorage.getItem(STORAGE_KEY);
     if (cachedToken === token) return;
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
-    }
-
-    const response = await fetchWithRetry(API_URL, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        token,
-        platform: Platform.OS,
-      }),
-    }, { retries: 3, timeout: 10000 });
+    const response = await fetchWithRetry(
+      API_URL,
+      {
+        method: 'POST',
+        headers: buildAuthHeaders(accessToken),
+        body: JSON.stringify({
+          token,
+          platform: Platform.OS,
+        }),
+      },
+      { retries: 3, timeout: 10000 },
+    );
 
     if (response.ok) {
       await AsyncStorage.setItem(STORAGE_KEY, token);
@@ -67,18 +65,15 @@ export async function unregisterPushToken(accessToken?: string): Promise<void> {
     const token = await AsyncStorage.getItem(STORAGE_KEY);
     if (!token) return;
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
-    }
-
-    await fetch(API_URL, {
-      method: 'DELETE',
-      headers,
-      body: JSON.stringify({ token }),
-    });
+    await fetchWithRetry(
+      API_URL,
+      {
+        method: 'DELETE',
+        headers: buildAuthHeaders(accessToken),
+        body: JSON.stringify({ token }),
+      },
+      { retries: 1, timeout: 5000 },
+    );
 
     await AsyncStorage.removeItem(STORAGE_KEY);
   } catch {
@@ -98,33 +93,34 @@ export function onTokenRefresh(
     const oldToken = await AsyncStorage.getItem(STORAGE_KEY);
 
     const accessToken =
-      typeof getAccessToken === 'function'
-        ? getAccessToken()
-        : getAccessToken;
+      typeof getAccessToken === 'function' ? getAccessToken() : getAccessToken;
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
-    }
+    const headers = buildAuthHeaders(accessToken ?? undefined);
 
     if (oldToken && oldToken !== newToken) {
-      await fetch(API_URL, {
-        method: 'DELETE',
-        headers,
-        body: JSON.stringify({ token: oldToken }),
-      });
+      await fetchWithRetry(
+        API_URL,
+        {
+          method: 'DELETE',
+          headers,
+          body: JSON.stringify({ token: oldToken }),
+        },
+        { retries: 1, timeout: 5000 },
+      );
     }
 
-    await fetch(API_URL, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        token: newToken,
-        platform: Platform.OS,
-      }),
-    });
+    await fetchWithRetry(
+      API_URL,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          token: newToken,
+          platform: Platform.OS,
+        }),
+      },
+      { retries: 3, timeout: 10000 },
+    );
 
     await AsyncStorage.setItem(STORAGE_KEY, newToken);
   });
