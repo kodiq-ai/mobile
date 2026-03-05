@@ -307,7 +307,7 @@ platform :android do
     # Clear any HALTED releases that block commit_edit
     %w[production beta alpha internal].each do |track_name|
       begin
-        track = publisher.get_track(package, edit_id, track_name)
+        track = publisher.get_edit_track(package, edit_id, track_name)
         next unless track&.releases&.any? { |r| r.status == "halted" }
 
         track.releases.each do |release|
@@ -315,7 +315,7 @@ platform :android do
           release.status = "completed"
           release.user_fraction = nil
         end
-        publisher.update_track(package, edit_id, track_name, track)
+        publisher.update_edit_track(package, edit_id, track_name, track)
         UI.important("Cleared HALTED release in #{track_name} track")
       rescue Google::Apis::ClientError
         # Track doesn't exist or no access — skip
