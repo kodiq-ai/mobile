@@ -8,13 +8,13 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-import { ACADEMY_URL } from '../config';
+import { BASE_URL } from '../config';
 import { buildAuthHeaders } from '../utils/auth-headers';
 import { fetchWithRetry } from '../utils/fetch-retry';
 
 const msg = getMessaging();
 const STORAGE_KEY = 'fcm_token';
-const API_URL = `${ACADEMY_URL.replace('/academy', '')}/api/academy/push-token`;
+const API_URL = `${BASE_URL}/api/academy/push-token`;
 
 /**
  * Request push permission, get FCM token, register with backend.
@@ -89,7 +89,7 @@ export async function unregisterPushToken(accessToken?: string): Promise<void> {
 export function onTokenRefresh(
   getAccessToken: (() => string | null) | string | undefined,
 ): () => void {
-  return onFirebaseTokenRefresh(msg, async (newToken) => {
+  return onFirebaseTokenRefresh(msg, async newToken => {
     const oldToken = await AsyncStorage.getItem(STORAGE_KEY);
 
     const accessToken =
