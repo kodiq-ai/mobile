@@ -359,6 +359,21 @@ platform :android do
       end
     end
 
+    # Clean up draft releases that may block commit_edit
+    %w[production beta alpha internal].each do |track_name|
+      begin
+        track = publisher.get_edit_track(package, edit_id, track_name)
+        problematic = track&.releases&.select { |r| %w[draft halted].include?(r.status) }
+        next if problematic.nil? || problematic.empty?
+
+        track.releases = track.releases.reject { |r| %w[draft halted].include?(r.status) }
+        publisher.update_edit_track(package, edit_id, track_name, track)
+        UI.important("Cleaned #{problematic.count} draft/halted release(s) from #{track_name}")
+      rescue Google::Apis::ClientError
+        # Track doesn't exist — skip
+      end
+    end
+
     publisher.commit_edit(package, edit_id)
     UI.success("Google Play metadata + screenshots committed")
   end
