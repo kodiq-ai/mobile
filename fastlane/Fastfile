@@ -253,129 +253,20 @@ end
 # --- Android ---
 
 platform :android do
-  desc "Initialize Google Play Publisher API client"
-  private_lane :gp_publisher do
-    require "google/apis/androidpublisher_v3"
-    require "googleauth"
-
-    publisher = Google::Apis::AndroidpublisherV3::AndroidPublisherService.new
-    json_key = JSON.parse(ENV["GOOGLE_PLAY_SERVICE_ACCOUNT"])
-    publisher.authorization = Google::Auth::ServiceAccountCredentials.make_creds(
-      json_key_io: StringIO.new(json_key.to_json),
-      scope: "https://www.googleapis.com/auth/androidpublisher",
-    )
-    publisher
-  end
-
-  desc "Fix HALTED releases that block edit commits"
-  lane :fix_halted_releases do
-    publisher = gp_publisher
-    package = "ai.kodiq"
-
-    # Debug: list all tracks and their release statuses
-    debug_edit = publisher.insert_edit(package)
-    %w[production beta alpha internal].each do |track_name|
-      begin
-        track = publisher.get_edit_track(package, debug_edit.id, track_name)
-        next unless track&.releases&.any?
-        track.releases.each do |r|
-          UI.important("[DEBUG] #{track_name}: name=#{r.name} status=#{r.status} fraction=#{r.user_fraction} codes=#{r.version_codes&.join(',')}")
-        end
-      rescue Google::Apis::ClientError => e
-        UI.message("[DEBUG] #{track_name}: #{e.message}")
-      end
-    end
-    publisher.delete_edit(package, debug_edit.id)
-
-    # Fix each track with halted releases in its own edit
-    %w[production beta alpha internal].each do |track_name|
-      edit = publisher.insert_edit(package)
-      begin
-        track = publisher.get_edit_track(package, edit.id, track_name)
-        halted = track&.releases&.select { |r| r.status == "halted" }
-
-        if halted.nil? || halted.empty?
-          publisher.delete_edit(package, edit.id)
-          next
-        end
-
-        UI.important("Fixing #{halted.count} HALTED release(s) in #{track_name}")
-
-        # Try setting halted → completed
-        track.releases.each do |release|
-          next unless release.status == "halted"
-          release.status = "completed"
-          release.user_fraction = nil
-        end
-        publisher.update_edit_track(package, edit.id, track_name, track)
-        publisher.commit_edit(package, edit.id)
-        UI.success("Fixed HALTED releases in #{track_name}")
-      rescue Google::Apis::ClientError => e
-        UI.important("Fix attempt failed for #{track_name}: #{e.message}")
-        begin; publisher.delete_edit(package, edit.id); rescue; end
-      end
-    end
-  end
-
   desc "Upload metadata + screenshots to Google Play"
   lane :upload_metadata do
-    # Step 1: Fix any halted releases first (separate edit per track)
-    fix_halted_releases
-
-    # Step 2: Upload metadata in a clean edit
-    publisher = gp_publisher
-    package = "ai.kodiq"
-    edit = publisher.insert_edit(package)
-    edit_id = edit.id
-
-    meta_dir = "./fastlane/metadata/android"
-    { "en-US" => "en-US", "ru-RU" => "ru-RU" }.each do |gp_locale, dir_locale|
-      locale_dir = File.join(meta_dir, dir_locale)
-      next unless File.directory?(locale_dir)
-
-      listing = Google::Apis::AndroidpublisherV3::Listing.new
-      %w[title short_description full_description].each do |field|
-        file = File.join(locale_dir, "#{field}.txt")
-        listing.send("#{field}=", File.read(file).strip) if File.exist?(file)
-      end
-
-      publisher.update_listing(package, edit_id, gp_locale, listing)
-      UI.success("Updated listing for #{gp_locale}")
-
-      # Upload screenshots (phoneScreenshots)
-      screenshots_dir = File.join(locale_dir, "images", "phoneScreenshots")
-      next unless File.directory?(screenshots_dir)
-
-      begin
-        publisher.delete_all_images(package, edit_id, gp_locale, "phoneScreenshots")
-      rescue Google::Apis::ClientError
-        # No existing images to delete
-      end
-
-      Dir.glob(File.join(screenshots_dir, "*.{png,jpg,jpeg}")).sort.each do |file|
-        publisher.upload_image(package, edit_id, gp_locale, "phoneScreenshots",
-          upload_source: file, content_type: "image/png")
-        UI.success("Uploaded screenshot: #{File.basename(file)}")
-      end
-    end
-
-    # Clean up draft releases that may block commit_edit
-    %w[production beta alpha internal].each do |track_name|
-      begin
-        track = publisher.get_edit_track(package, edit_id, track_name)
-        problematic = track&.releases&.select { |r| %w[draft halted].include?(r.status) }
-        next if problematic.nil? || problematic.empty?
-
-        track.releases = track.releases.reject { |r| %w[draft halted].include?(r.status) }
-        publisher.update_edit_track(package, edit_id, track_name, track)
-        UI.important("Cleaned #{problematic.count} draft/halted release(s) from #{track_name}")
-      rescue Google::Apis::ClientError
-        # Track doesn't exist — skip
-      end
-    end
-
-    publisher.commit_edit(package, edit_id)
-    UI.success("Google Play metadata + screenshots committed")
+    supply(
+      json_key_data: ENV["GOOGLE_PLAY_SERVICE_ACCOUNT"],
+      package_name: "ai.kodiq",
+      skip_upload_apk: true,
+      skip_upload_aab: true,
+      skip_upload_changelogs: true,
+      metadata_path: "./fastlane/metadata/android",
+      skip_upload_metadata: false,
+      skip_upload_images: false,
+      skip_upload_screenshots: false,
+      sync_image_upload: true,
+    )
   end
 
   desc "Promote internal build to production"
