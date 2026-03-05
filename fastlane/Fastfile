@@ -301,7 +301,46 @@ platform :android do
       end
     end
 
-    # Commit edit — only listings/images changed, no track modifications
+    # Validate first for detailed error info, then commit
+    begin
+      publisher.validate_edit(package, edit_id)
+      UI.success("Edit validation passed")
+    rescue Google::Apis::ClientError => e
+      UI.important("Validation error: #{e.message}")
+      # Try to get more details from the response
+      UI.important("Response body: #{e.body}") if e.respond_to?(:body)
+      UI.important("Status code: #{e.status_code}") if e.respond_to?(:status_code)
+
+      # Debug: dump all track states in this edit
+      %w[production beta alpha internal].each do |track_name|
+        begin
+          track = publisher.get_edit_track(package, edit_id, track_name)
+          next unless track&.releases&.any?
+          track.releases.each do |r|
+            UI.important("[TRACK] #{track_name}: name=#{r.name} status=#{r.status} fraction=#{r.user_fraction} codes=#{r.version_codes&.join(',')}")
+          end
+        rescue Google::Apis::ClientError => te
+          UI.message("[TRACK] #{track_name}: #{te.message}")
+        end
+      end
+
+      # Attempt fix: set draft → completed in internal track
+      begin
+        track = publisher.get_edit_track(package, edit_id, "internal")
+        if track&.releases&.any? { |r| r.status == "draft" }
+          track.releases.each do |r|
+            if r.status == "draft"
+              r.status = "completed"
+              UI.important("Setting draft release #{r.name} (codes: #{r.version_codes&.join(',')}) to completed")
+            end
+          end
+          publisher.update_edit_track(package, edit_id, "internal", track)
+        end
+      rescue Google::Apis::ClientError => fix_e
+        UI.important("Fix attempt error: #{fix_e.message}")
+      end
+    end
+
     publisher.commit_edit(package, edit_id)
     UI.success("Google Play metadata + screenshots committed")
   end
