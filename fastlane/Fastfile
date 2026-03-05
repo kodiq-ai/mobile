@@ -304,21 +304,19 @@ platform :android do
       end
     end
 
-    # Clear any HALTED releases that block commit_edit
+    # Clear any HALTED releases that block commit_edit by removing them
     %w[production beta alpha internal].each do |track_name|
       begin
         track = publisher.get_edit_track(package, edit_id, track_name)
-        next unless track&.releases&.any? { |r| r.status == "halted" }
+        halted = track&.releases&.select { |r| r.status == "halted" }
+        next if halted.nil? || halted.empty?
 
-        track.releases.each do |release|
-          next unless release.status == "halted"
-          release.status = "completed"
-          release.user_fraction = nil
-        end
+        # Remove halted releases, keep the rest
+        track.releases = track.releases.reject { |r| r.status == "halted" }
         publisher.update_edit_track(package, edit_id, track_name, track)
-        UI.important("Cleared HALTED release in #{track_name} track")
-      rescue Google::Apis::ClientError
-        # Track doesn't exist or no access — skip
+        UI.important("Removed #{halted.count} HALTED release(s) from #{track_name} track")
+      rescue Google::Apis::ClientError => e
+        UI.message("Skipping #{track_name}: #{e.message}")
       end
     end
 
