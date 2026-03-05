@@ -272,6 +272,22 @@ platform :android do
     publisher = gp_publisher
     package = "ai.kodiq"
 
+    # Debug: list all tracks and their release statuses
+    debug_edit = publisher.insert_edit(package)
+    %w[production beta alpha internal].each do |track_name|
+      begin
+        track = publisher.get_edit_track(package, debug_edit.id, track_name)
+        next unless track&.releases&.any?
+        track.releases.each do |r|
+          UI.important("[DEBUG] #{track_name}: name=#{r.name} status=#{r.status} fraction=#{r.user_fraction} codes=#{r.version_codes&.join(',')}")
+        end
+      rescue Google::Apis::ClientError => e
+        UI.message("[DEBUG] #{track_name}: #{e.message}")
+      end
+    end
+    publisher.delete_edit(package, debug_edit.id)
+
+    # Fix each track with halted releases in its own edit
     %w[production beta alpha internal].each do |track_name|
       edit = publisher.insert_edit(package)
       begin
@@ -283,14 +299,9 @@ platform :android do
           next
         end
 
-        UI.important("Found #{halted.count} HALTED release(s) in #{track_name}")
+        UI.important("Fixing #{halted.count} HALTED release(s) in #{track_name}")
 
-        # Log release details for debugging
-        halted.each do |r|
-          UI.message("  version: #{r.name}, code: #{r.version_codes&.join(',')}, fraction: #{r.user_fraction}")
-        end
-
-        # Set halted → completed (keep fraction nil for completed)
+        # Try setting halted → completed
         track.releases.each do |release|
           next unless release.status == "halted"
           release.status = "completed"
@@ -300,7 +311,7 @@ platform :android do
         publisher.commit_edit(package, edit.id)
         UI.success("Fixed HALTED releases in #{track_name}")
       rescue Google::Apis::ClientError => e
-        UI.message("Track #{track_name}: #{e.message}")
+        UI.important("Fix attempt failed for #{track_name}: #{e.message}")
         begin; publisher.delete_edit(package, edit.id); rescue; end
       end
     end
