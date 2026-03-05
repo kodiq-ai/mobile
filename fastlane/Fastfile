@@ -253,10 +253,8 @@ end
 # --- Android ---
 
 platform :android do
-  desc "Upload metadata + screenshots to Google Play"
-  lane :upload_metadata do
-    # Use Google Play Developer API directly to avoid supply's
-    # track-based flow that fails on draft apps
+  desc "Initialize Google Play Publisher API client"
+  private_lane :gp_publisher do
     require "google/apis/androidpublisher_v3"
     require "googleauth"
 
@@ -266,12 +264,59 @@ platform :android do
       json_key_io: StringIO.new(json_key.to_json),
       scope: "https://www.googleapis.com/auth/androidpublisher",
     )
+    publisher
+  end
 
+  desc "Fix HALTED releases that block edit commits"
+  lane :fix_halted_releases do
+    publisher = gp_publisher
+    package = "ai.kodiq"
+
+    %w[production beta alpha internal].each do |track_name|
+      edit = publisher.insert_edit(package)
+      begin
+        track = publisher.get_edit_track(package, edit.id, track_name)
+        halted = track&.releases&.select { |r| r.status == "halted" }
+
+        if halted.nil? || halted.empty?
+          publisher.delete_edit(package, edit.id)
+          next
+        end
+
+        UI.important("Found #{halted.count} HALTED release(s) in #{track_name}")
+
+        # Log release details for debugging
+        halted.each do |r|
+          UI.message("  version: #{r.name}, code: #{r.version_codes&.join(',')}, fraction: #{r.user_fraction}")
+        end
+
+        # Set halted → completed (keep fraction nil for completed)
+        track.releases.each do |release|
+          next unless release.status == "halted"
+          release.status = "completed"
+          release.user_fraction = nil
+        end
+        publisher.update_edit_track(package, edit.id, track_name, track)
+        publisher.commit_edit(package, edit.id)
+        UI.success("Fixed HALTED releases in #{track_name}")
+      rescue Google::Apis::ClientError => e
+        UI.message("Track #{track_name}: #{e.message}")
+        begin; publisher.delete_edit(package, edit.id); rescue; end
+      end
+    end
+  end
+
+  desc "Upload metadata + screenshots to Google Play"
+  lane :upload_metadata do
+    # Step 1: Fix any halted releases first (separate edit per track)
+    fix_halted_releases
+
+    # Step 2: Upload metadata in a clean edit
+    publisher = gp_publisher
     package = "ai.kodiq"
     edit = publisher.insert_edit(package)
     edit_id = edit.id
 
-    # Upload store listing metadata per locale
     meta_dir = "./fastlane/metadata/android"
     { "en-US" => "en-US", "ru-RU" => "ru-RU" }.each do |gp_locale, dir_locale|
       locale_dir = File.join(meta_dir, dir_locale)
@@ -290,7 +335,6 @@ platform :android do
       screenshots_dir = File.join(locale_dir, "images", "phoneScreenshots")
       next unless File.directory?(screenshots_dir)
 
-      # Clear existing screenshots
       begin
         publisher.delete_all_images(package, edit_id, gp_locale, "phoneScreenshots")
       rescue Google::Apis::ClientError
@@ -301,26 +345,6 @@ platform :android do
         publisher.upload_image(package, edit_id, gp_locale, "phoneScreenshots",
           upload_source: file, content_type: "image/png")
         UI.success("Uploaded screenshot: #{File.basename(file)}")
-      end
-    end
-
-    # Resume any HALTED releases that block commit_edit
-    %w[production beta alpha internal].each do |track_name|
-      begin
-        track = publisher.get_edit_track(package, edit_id, track_name)
-        halted = track&.releases&.select { |r| r.status == "halted" }
-        next if halted.nil? || halted.empty?
-
-        # Resume halted releases with full rollout
-        track.releases.each do |release|
-          next unless release.status == "halted"
-          release.status = "inProgress"
-          release.user_fraction = 1.0
-        end
-        publisher.update_edit_track(package, edit_id, track_name, track)
-        UI.important("Resumed #{halted.count} HALTED release(s) in #{track_name} track")
-      rescue Google::Apis::ClientError => e
-        UI.message("Skipping #{track_name}: #{e.message}")
       end
     end
 
