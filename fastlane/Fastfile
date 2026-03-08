@@ -76,40 +76,31 @@ platform :ios do
     token = Spaceship::ConnectAPI::Token.from(hash: lane_context[SharedValues::APP_STORE_CONNECT_API_KEY])
     Spaceship::ConnectAPI.token = token
 
-    # Find the Bundle ID
-    bundle_ids = Spaceship::ConnectAPI.get_bundle_ids(filter: { identifier: "ai.kodiq" }).all_pages_each.to_a
-    bundle_id = bundle_ids.first
+    # Find the Bundle ID via ASC API
+    resp = Spaceship::ConnectAPI.get_bundle_ids(filter: { identifier: "ai.kodiq" })
+    bundle_id = resp.first
     UI.user_error!("Bundle ID ai.kodiq not found") unless bundle_id
+    UI.success("Found Bundle ID: #{bundle_id.identifier} (#{bundle_id.id})")
 
     # Check existing capabilities
     caps = bundle_id.get_capabilities
-    has_app_groups = caps.any? { |c| c.capability_type == "APP_GROUPS" }
+    cap_types = caps.map(&:capability_type)
+    UI.message("Current capabilities: #{cap_types.join(', ')}")
 
-    unless has_app_groups
-      Spaceship::ConnectAPI.post_bundle_id_capability(
-        bundle_id_id: bundle_id.id,
-        capability_type: "APP_GROUPS",
-        settings: [
-          {
-            key: "APP_GROUP_IDENTIFIERS",
-            options: [{ key: "group.ai.kodiq" }],
-          },
-        ],
-      )
-      UI.success("Enabled App Groups capability on ai.kodiq")
+    # Enable App Groups if missing
+    unless cap_types.include?("APP_GROUPS")
+      bundle_id.create_capability(Spaceship::ConnectAPI::BundleIdCapability::Type::APP_GROUPS)
+      UI.success("Enabled App Groups capability")
     else
-      UI.success("App Groups capability already enabled")
+      UI.success("App Groups already enabled")
     end
 
-    # Also ensure Push Notifications
-    has_push = caps.any? { |c| c.capability_type == "PUSH_NOTIFICATIONS" }
-    unless has_push
-      Spaceship::ConnectAPI.post_bundle_id_capability(
-        bundle_id_id: bundle_id.id,
-        capability_type: "PUSH_NOTIFICATIONS",
-        settings: [],
-      )
+    # Enable Push Notifications if missing
+    unless cap_types.include?("PUSH_NOTIFICATIONS")
+      bundle_id.create_capability(Spaceship::ConnectAPI::BundleIdCapability::Type::PUSH_NOTIFICATIONS)
       UI.success("Enabled Push Notifications capability")
+    else
+      UI.success("Push Notifications already enabled")
     end
   end
 
