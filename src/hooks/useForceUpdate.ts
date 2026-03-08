@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 
 import { BASE_URL } from '../config';
+import { logger } from '../utils/logger';
+
+const log = logger.child({ module: 'update' });
 
 const VERSION_URL = `${BASE_URL}/api/academy/mobile-version`;
 const APP_VERSION = '1.0.0'; // Keep in sync with package.json
@@ -53,14 +56,22 @@ export function useForceUpdate() {
       setStoreUrl(url);
 
       if (compareSemver(APP_VERSION, data.minVersion) < 0) {
+        log.warn(
+          { current: APP_VERSION, min: data.minVersion },
+          'Force update required',
+        );
         setStatus('force');
       } else if (compareSemver(APP_VERSION, data.latestVersion) < 0) {
+        log.info(
+          { current: APP_VERSION, latest: data.latestVersion },
+          'Soft update available',
+        );
         setStatus('soft');
       } else {
         setStatus('ok');
       }
-    } catch {
-      // Network error — skip check, don't block the user
+    } catch (err) {
+      log.debug({ err }, 'Version check failed');
     }
   }, []);
 

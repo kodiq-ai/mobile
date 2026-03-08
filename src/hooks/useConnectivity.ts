@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { connectivityService } from '../services/connectivity';
+import { logger } from '../utils/logger';
+
+const log = logger.child({ module: 'connectivity' });
 
 interface ConnectivityState {
   connectivityReady: boolean;
@@ -28,6 +31,7 @@ export function useConnectivity(): ConnectivityState {
     }, 1500);
 
     const unsubscribe = connectivityService.subscribe(online => {
+      log.debug({ online }, 'Connectivity changed');
       setIsOffline(!online);
       if (online && !wasReady) {
         setConnectivityReady(true);

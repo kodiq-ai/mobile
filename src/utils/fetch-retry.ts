@@ -5,6 +5,10 @@
  *   const res = await fetchWithRetry(url, { method: 'POST', body }, { retries: 3 });
  */
 
+import { logger } from './logger';
+
+const log = logger.child({ module: 'fetch' });
+
 interface RetryOptions {
   /** Max retry attempts (default: 3) */
   retries?: number;
@@ -48,9 +52,14 @@ export async function fetchWithRetry(
     // Wait before next retry (exponential backoff)
     if (attempt < retries) {
       const delay = baseDelay * Math.pow(2, attempt);
-      await new Promise<void>((resolve) => setTimeout(resolve, delay));
+      log.warn(
+        { url, attempt: attempt + 1, retries, delay },
+        'Retrying request',
+      );
+      await new Promise<void>(resolve => setTimeout(resolve, delay));
     }
   }
 
+  log.error({ url, err: lastError }, 'All retries exhausted');
   throw lastError;
 }

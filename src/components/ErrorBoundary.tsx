@@ -1,8 +1,14 @@
 import * as Sentry from '@sentry/react-native';
-import { getCrashlytics, recordError } from '@react-native-firebase/crashlytics';
+import {
+  getCrashlytics,
+  recordError,
+} from '@react-native-firebase/crashlytics';
 import React, { Component, type ErrorInfo, type ReactNode } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { COLORS } from '../config';
+import { logger } from '../utils/logger';
+
+const log = logger.child({ module: 'error-boundary' });
 
 interface Props {
   children: ReactNode;
@@ -20,8 +26,14 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
+    log.error(
+      { err: error.message, stack: info.componentStack },
+      'React error boundary caught',
+    );
     recordError(getCrashlytics(), error, info.componentStack ?? undefined);
-    Sentry.captureException(error, { contexts: { react: { componentStack: info.componentStack } } });
+    Sentry.captureException(error, {
+      contexts: { react: { componentStack: info.componentStack } },
+    });
   }
 
   handleRestart = () => {
@@ -33,9 +45,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <View style={styles.container}>
           <Text style={styles.title}>Что-то пошло не так</Text>
-          <Text style={styles.subtitle}>
-            Ошибка отправлена разработчикам
-          </Text>
+          <Text style={styles.subtitle}>Ошибка отправлена разработчикам</Text>
           <TouchableOpacity style={styles.button} onPress={this.handleRestart}>
             <Text style={styles.buttonText}>Попробовать снова</Text>
           </TouchableOpacity>

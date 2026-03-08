@@ -3,6 +3,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import * as Keychain from 'react-native-keychain';
 
+import { logger } from '../utils/logger';
+
+const log = logger.child({ module: 'biometric' });
+
 const BIOMETRIC_ENABLED_KEY = 'biometric_enabled';
 const LOCK_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -38,15 +42,18 @@ export function useBiometric(isAuthenticated: boolean): UseBiometricResult {
     void (async () => {
       try {
         const supported = await Keychain.getSupportedBiometryType();
+        log.debug({ supported }, 'Biometric availability check');
         setIsAvailable(supported !== null);
-      } catch {
+      } catch (err) {
+        log.warn({ err }, 'Biometric availability check failed');
         setIsAvailable(false);
       }
 
       try {
         const enabled = await AsyncStorage.getItem(BIOMETRIC_ENABLED_KEY);
         setIsEnabled(enabled === 'true');
-      } catch {
+      } catch (err) {
+        log.warn({ err }, 'Failed to load biometric preference');
         setIsEnabled(false);
       }
     })();
@@ -85,10 +92,11 @@ export function useBiometric(isAuthenticated: boolean): UseBiometricResult {
       if (result) {
         await AsyncStorage.setItem(BIOMETRIC_ENABLED_KEY, 'true');
         setIsEnabled(true);
+        log.info('Biometric enabled');
         return true;
       }
-    } catch {
-      // Biometric enrollment failed
+    } catch (err) {
+      log.error({ err }, 'Biometric enrollment failed');
     }
     return false;
   }, []);
@@ -96,12 +104,13 @@ export function useBiometric(isAuthenticated: boolean): UseBiometricResult {
   const disable = useCallback(async () => {
     try {
       await Keychain.resetGenericPassword({ service: 'ai.kodiq.biometric' });
-    } catch {
-      // Ignore
+    } catch (err) {
+      log.warn({ err }, 'Keychain reset failed');
     }
     await AsyncStorage.setItem(BIOMETRIC_ENABLED_KEY, 'false');
     setIsEnabled(false);
     setState('idle');
+    log.info('Biometric disabled');
   }, []);
 
   const unlock = useCallback(async (): Promise<boolean> => {
@@ -116,11 +125,12 @@ export function useBiometric(isAuthenticated: boolean): UseBiometricResult {
         },
       });
       if (credentials) {
+        log.info('Biometric unlock success');
         setState('idle');
         return true;
       }
-    } catch {
-      // Biometric check failed
+    } catch (err) {
+      log.warn({ err }, 'Biometric unlock failed');
     }
     setState('locked');
     return false;

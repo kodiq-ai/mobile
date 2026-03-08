@@ -11,6 +11,9 @@ import { Platform } from 'react-native';
 import { BASE_URL } from '../config';
 import { buildAuthHeaders } from '../utils/auth-headers';
 import { fetchWithRetry } from '../utils/fetch-retry';
+import { logger } from '../utils/logger';
+
+const log = logger.child({ module: 'push' });
 
 const msg = getMessaging();
 const STORAGE_KEY = 'fcm_token';
@@ -50,10 +53,13 @@ export async function registerPushToken(accessToken?: string): Promise<void> {
     );
 
     if (response.ok) {
+      log.info('Push token registered');
       await AsyncStorage.setItem(STORAGE_KEY, token);
+    } else {
+      log.warn({ status: response.status }, 'Push token registration failed');
     }
-  } catch {
-    // Push registration is best-effort
+  } catch (err) {
+    log.error({ err }, 'Push registration error');
   }
 }
 
@@ -75,9 +81,10 @@ export async function unregisterPushToken(accessToken?: string): Promise<void> {
       { retries: 1, timeout: 5000 },
     );
 
+    log.info('Push token unregistered');
     await AsyncStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // Best-effort cleanup
+  } catch (err) {
+    log.error({ err }, 'Push token unregister error');
   }
 }
 

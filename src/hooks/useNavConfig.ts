@@ -6,6 +6,9 @@ import { NAV_CONFIG_URL } from '../config';
 import { FALLBACK_NAV_CONFIG } from '../navigation/fallback-config';
 import type { MobileNavConfig } from '../types/nav';
 import { fetchWithRetry } from '../utils/fetch-retry';
+import { logger } from '../utils/logger';
+
+const log = logger.child({ module: 'nav-config' });
 
 const STORAGE_KEY = 'kodiq:nav-config';
 
@@ -54,12 +57,13 @@ export function useNavConfig(): MobileNavConfig {
         if (res.ok) {
           const raw: unknown = await res.json();
           if (!isValidNavConfig(raw)) throw new Error('Invalid nav config');
+          log.info('Nav config loaded from API');
           setConfig(raw);
           await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(raw));
           return;
         }
-      } catch {
-        // API failed — try cache
+      } catch (err) {
+        log.warn({ err }, 'Nav config API failed, trying cache');
       }
 
       try {
@@ -67,12 +71,13 @@ export function useNavConfig(): MobileNavConfig {
         if (cached) {
           const parsed: unknown = JSON.parse(cached);
           if (isValidNavConfig(parsed)) {
+            log.info('Nav config loaded from cache');
             setConfig(parsed);
             return;
           }
         }
-      } catch {
-        // Cache read failed
+      } catch (err) {
+        log.warn({ err }, 'Nav config cache read failed, using fallback');
       }
 
       // Fallback already set as initial state

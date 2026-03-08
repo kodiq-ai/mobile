@@ -7,6 +7,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { Linking } from 'react-native';
 
 import { supabase } from '../auth/supabase';
+import { logger } from '../utils/logger';
+
+const log = logger.child({ module: 'deeplink' });
 
 /**
  * Handles deep links from push notifications and OAuth callbacks (kodiq://).
@@ -26,14 +29,11 @@ export function useDeepLinks(): { deepLinkUrl: string | null } {
           .exchangeCodeForSession(code)
           .then(({ error }) => {
             if (error) {
-              console.error(
-                '[DeepLink] Session exchange failed:',
-                error.message,
-              );
+              log.error({ err: error.message }, 'Session exchange failed');
             }
           })
-          .catch(err => {
-            console.error('[DeepLink] Session exchange error:', err);
+          .catch((err: unknown) => {
+            log.error({ err }, 'Session exchange error');
           });
       }
       return;

@@ -8,7 +8,10 @@ import React, {
 } from 'react';
 
 import { unregisterPushToken } from '../services/push';
+import { logger } from '../utils/logger';
 import { supabase } from './supabase';
+
+const log = logger.child({ module: 'auth' });
 
 interface AuthContextValue {
   session: Session | null;
@@ -51,7 +54,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth state changes (login, logout, token refresh)
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, s) => {
+    } = supabase.auth.onAuthStateChange((event, s) => {
+      log.info({ event, userId: s?.user?.id }, 'Auth state changed');
       setSession(s);
     });
 
@@ -60,11 +64,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithEmail = useCallback(
     async (email: string, password: string) => {
+      log.info({ email }, 'Email sign-in attempt');
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      if (error) return { error: error.message };
+      if (error) {
+        log.warn({ email, err: error.message }, 'Email sign-in failed');
+        return { error: error.message };
+      }
       return {};
     },
     [],
@@ -86,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const handleSignOut = useCallback(async () => {
+    log.info('Sign-out initiated');
     // Unregister push token before clearing session (needs auth)
     const currentSession = await supabase.auth.getSession();
     const token = currentSession.data.session?.access_token;
@@ -93,6 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     await supabase.auth.signOut();
     setSession(null);
+    log.info('Sign-out complete');
   }, []);
 
   const resetPassword = useCallback(async (email: string) => {

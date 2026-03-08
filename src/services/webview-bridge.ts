@@ -4,6 +4,9 @@ import { handleMilestoneForReview } from './app-rating';
 import { updateStreakWidget } from './widget';
 import type { WebToNativeMessage } from '../types/bridge';
 import { hapticSuccess } from '../utils/haptics';
+import { logger } from '../utils/logger';
+
+const log = logger.child({ module: 'bridge' });
 
 export interface BridgeCallbacks {
   onSignOut: () => void;
@@ -21,14 +24,21 @@ export function processWebViewMessage(
   cb: BridgeCallbacks,
   contentLoaded: boolean,
 ): void {
+  log.debug({ type: msg.type }, 'Message received');
+
   switch (msg.type) {
     case 'logout':
+      log.info('Sign-out requested by web');
       cb.onSignOut();
       break;
     case 'auth_state':
-      if (!msg.authenticated) cb.onSignOut();
+      if (!msg.authenticated) {
+        log.info('Auth state: unauthenticated');
+        cb.onSignOut();
+      }
       break;
     case 'page_meta':
+      log.debug({ path: msg.path, title: msg.title }, 'Page meta');
       cb.onPageMeta(msg.title, msg.path, msg.canGoBack);
       if (!contentLoaded) cb.onContentLoaded();
       break;
@@ -36,6 +46,7 @@ export function processWebViewMessage(
       cb.onNotificationCount(msg.count);
       break;
     case 'share':
+      log.info({ title: msg.title }, 'Share requested');
       Share.share({
         title: msg.title,
         message: [msg.text, msg.url].filter(Boolean).join('\n'),
@@ -43,10 +54,12 @@ export function processWebViewMessage(
       }).catch(() => {});
       break;
     case 'milestone':
+      log.info({ event: msg.event }, 'Milestone achieved');
       hapticSuccess();
       void handleMilestoneForReview(msg.event);
       break;
     case 'streak_update':
+      log.debug({ streak: msg.streak }, 'Streak updated');
       void updateStreakWidget(msg.streak, msg.challengeDone);
       break;
     case 'navigation':
