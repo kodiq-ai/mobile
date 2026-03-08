@@ -29,4 +29,20 @@ class StreakWidgetModule(reactContext: ReactApplicationContext) :
             promise.reject("WIDGET_ERROR", e.message)
         }
     }
+
+    @ReactMethod
+    fun updateExtended(streak: Double, done: Boolean, progress: Double, lessonTitle: String?) {
+        val prefs = reactApplicationContext.getSharedPreferences(
+            "ai.kodiq.widget",
+            Context.MODE_PRIVATE
+        )
+        prefs.edit()
+            .putInt("streak_count", streak.toInt())
+            .putBoolean("challenge_done", done)
+            .putInt("progress", progress.toInt())
+            .putString("lesson_title", lessonTitle ?: "")
+            .apply()
+
+        StreakWidgetProvider.updateAllWidgets(reactApplicationContext)
+    }
 }

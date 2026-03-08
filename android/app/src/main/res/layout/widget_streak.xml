@@ -49,4 +49,42 @@
         android:textColor="#CCCCDD"
         android:textSize="10sp" />
 
+    <!-- Progress bar -->
+    <ProgressBar
+        android:id="@+id/widget_progress_bar"
+        style="@android:style/Widget.ProgressBar.Horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="6dp"
+        android:layout_marginTop="8dp"
+        android:max="100"
+        android:progress="0"
+        android:visibility="gone" />
+
+    <!-- Next lesson title -->
+    <TextView
+        android:id="@+id/widget_lesson_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:ellipsize="end"
+        android:fontFamily="monospace"
+        android:gravity="center"
+        android:maxLines="1"
+        android:textColor="#E8E0D4"
+        android:textSize="11sp"
+        android:visibility="gone" />
+
+    <!-- Continue button -->
+    <TextView
+        android:id="@+id/widget_continue_btn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingTop="6dp"
+        android:paddingBottom="6dp"
+        android:text="Продолжить →"
+        android:textColor="#D4944A"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
 </LinearLayout>

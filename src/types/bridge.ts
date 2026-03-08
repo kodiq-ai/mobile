@@ -15,14 +15,30 @@ export type WebToNativeMessage =
   | { type: 'notification_count'; count: number }
   | { type: 'milestone'; event: string }
   | { type: 'share'; title: string; text?: string; url?: string }
-  | { type: 'streak_update'; streak: number; challengeDone: boolean };
+  | {
+      type: 'streak_update';
+      streak: number;
+      challengeDone: boolean;
+      dailyGoalProgress?: number;
+      dailyGoalTarget?: number;
+      nextLessonTitle?: string;
+    }
+  | {
+      type: 'xp_update';
+      xp: number;
+      level: number;
+      xpToNextLevel: number;
+      badge?: { id: string; name: string; icon: string; description: string };
+    }
+  | { type: 'cache_lesson'; lessonId: string; html: string; title: string };
 
 /** Messages sent from Native to WebView (web) */
 export type NativeToWebMessage =
   | { type: 'connectivity'; online: boolean }
   | { type: 'push_token'; token: string }
   | { type: 'navigate'; path: string }
-  | { type: 'set_locale'; locale: 'ru' | 'en' };
+  | { type: 'set_locale'; locale: 'ru' | 'en' }
+  | { type: 'serve_cached'; lessonId: string; html: string };
 
 /** Global declaration injected into WebView */
 declare global {

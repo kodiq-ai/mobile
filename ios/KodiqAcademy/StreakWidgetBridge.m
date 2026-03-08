@@ -7,4 +7,9 @@ RCT_EXTERN_METHOD(updateStreak:(int)streak
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject)
 
+RCT_EXTERN_METHOD(updateExtended:(int)streak
+                  done:(BOOL)done
+                  progress:(double)progress
+                  lessonTitle:(NSString *)lessonTitle)
+
 @end

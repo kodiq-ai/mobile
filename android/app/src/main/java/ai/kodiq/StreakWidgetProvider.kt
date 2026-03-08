@@ -5,6 +5,8 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.view.View
 import android.widget.RemoteViews
 
 class StreakWidgetProvider : AppWidgetProvider() {
@@ -23,6 +25,8 @@ class StreakWidgetProvider : AppWidgetProvider() {
         private const val PREFS_NAME = "ai.kodiq.widget"
         private const val KEY_STREAK = "streak_count"
         private const val KEY_CHALLENGE_DONE = "challenge_done"
+        private const val KEY_PROGRESS = "progress"
+        private const val KEY_LESSON_TITLE = "lesson_title"
 
         fun updateWidget(
             context: Context,
@@ -32,6 +36,8 @@ class StreakWidgetProvider : AppWidgetProvider() {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val streak = prefs.getInt(KEY_STREAK, 0)
             val challengeDone = prefs.getBoolean(KEY_CHALLENGE_DONE, false)
+            val progress = prefs.getInt(KEY_PROGRESS, 0)
+            val lessonTitle = prefs.getString(KEY_LESSON_TITLE, "") ?: ""
 
             val views = RemoteViews(context.packageName, R.layout.widget_streak)
             views.setTextViewText(R.id.widget_streak_count, streak.toString())
@@ -50,6 +56,32 @@ class StreakWidgetProvider : AppWidgetProvider() {
                 "⬜ Урок на сегодня"
             }
             views.setTextViewText(R.id.widget_challenge, challengeText)
+
+            // Progress bar
+            views.setProgressBar(R.id.widget_progress_bar, 100, progress, false)
+            views.setViewVisibility(
+                R.id.widget_progress_bar,
+                if (progress > 0) View.VISIBLE else View.GONE
+            )
+
+            // Lesson title & continue button
+            if (lessonTitle.isNotEmpty()) {
+                views.setTextViewText(R.id.widget_lesson_title, lessonTitle)
+                views.setViewVisibility(R.id.widget_lesson_title, View.VISIBLE)
+                views.setViewVisibility(R.id.widget_continue_btn, View.VISIBLE)
+
+                val continueIntent = Intent(Intent.ACTION_VIEW, Uri.parse("kodiq://continue"))
+                val continuePending = PendingIntent.getActivity(
+                    context,
+                    1,
+                    continueIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                views.setOnClickPendingIntent(R.id.widget_continue_btn, continuePending)
+            } else {
+                views.setViewVisibility(R.id.widget_lesson_title, View.GONE)
+                views.setViewVisibility(R.id.widget_continue_btn, View.GONE)
+            }
 
             // Tap widget → open app
             val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)

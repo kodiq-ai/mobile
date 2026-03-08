@@ -7,6 +7,10 @@
     <string name="shortcut_dashboard_long">Мой прогресс</string>
     <string name="shortcut_search">Поиск</string>
     <string name="shortcut_search_long">Поиск курсов</string>
+    <string name="shortcut_ai_mentor">AI Ментор</string>
+    <string name="shortcut_ai_mentor_long">Открыть AI Ментора</string>
+    <string name="shortcut_continue">Продолжить</string>
+    <string name="shortcut_continue_long">Продолжить обучение</string>
     <!-- Streak Widget -->
     <string name="widget_description">Streak и ежедневный прогресс</string>
 </resources>

@@ -43,3 +43,48 @@ export function hapticSelection() {
   if (Platform.OS === 'web') return;
   ReactNativeHapticFeedback.trigger(HapticFeedbackTypes.selection, options);
 }
+
+/** Streak milestone — medium impact followed by success notification */
+export function hapticStreakMilestone() {
+  if (Platform.OS === 'web') return;
+  ReactNativeHapticFeedback.trigger(HapticFeedbackTypes.impactMedium, options);
+  setTimeout(() => {
+    ReactNativeHapticFeedback.trigger(
+      HapticFeedbackTypes.notificationSuccess,
+      options,
+    );
+  }, 100);
+}
+
+/** Celebration — escalating impact pattern for achievements */
+export function hapticCelebration() {
+  if (Platform.OS === 'web') return;
+  ReactNativeHapticFeedback.trigger(HapticFeedbackTypes.impactLight, options);
+  setTimeout(() => {
+    ReactNativeHapticFeedback.trigger(
+      HapticFeedbackTypes.impactMedium,
+      options,
+    );
+  }, 60);
+  setTimeout(() => {
+    ReactNativeHapticFeedback.trigger(
+      HapticFeedbackTypes.notificationSuccess,
+      options,
+    );
+  }, 120);
+}
+
+/** Error pattern — error notification followed by warning */
+export function hapticErrorPattern() {
+  if (Platform.OS === 'web') return;
+  ReactNativeHapticFeedback.trigger(
+    HapticFeedbackTypes.notificationError,
+    options,
+  );
+  setTimeout(() => {
+    ReactNativeHapticFeedback.trigger(
+      HapticFeedbackTypes.notificationWarning,
+      options,
+    );
+  }, 150);
+}

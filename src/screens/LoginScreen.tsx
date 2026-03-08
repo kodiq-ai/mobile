@@ -1,5 +1,6 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   Linking,
   Platform,
   StyleSheet,
@@ -35,6 +36,41 @@ export function LoginScreen({ onNavigate }: LoginScreenProps) {
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const passwordRef = useRef<TextInput>(null);
 
+  // Stagger entrance animation (4 groups: oauth, divider, form, links)
+  const oauthOpacity = useRef(new Animated.Value(0)).current;
+  const dividerOpacity = useRef(new Animated.Value(0)).current;
+  const formOpacity = useRef(new Animated.Value(0)).current;
+  const linksOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.stagger(80, [
+      Animated.spring(oauthOpacity, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+      Animated.spring(dividerOpacity, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+      Animated.spring(formOpacity, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+      Animated.spring(linksOpacity, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [oauthOpacity, dividerOpacity, formOpacity, linksOpacity]);
+
   const handleEmailLogin = useCallback(async () => {
     if (!email.trim() || !password) return;
     setLoading(true);
@@ -51,106 +87,130 @@ export function LoginScreen({ onNavigate }: LoginScreenProps) {
     }
   }, [email, password, signInWithEmail]);
 
-  const handleOAuthLogin = useCallback(async (provider: 'google' | 'apple' | 'github') => {
-    setLoading(true);
-    setLoadingProvider(provider);
-    setError(null);
-    try {
-      const result = await signInWithOAuth(provider);
-      if (result.error) {
-        setError(translateError(result.error));
-        return;
+  const handleOAuthLogin = useCallback(
+    async (provider: 'google' | 'apple' | 'github') => {
+      setLoading(true);
+      setLoadingProvider(provider);
+      setError(null);
+      try {
+        const result = await signInWithOAuth(provider);
+        if (result.error) {
+          setError(translateError(result.error));
+          return;
+        }
+        if (result.url) {
+          await Linking.openURL(result.url);
+        }
+      } catch {
+        setError(`Ошибка входа через ${provider}`);
+      } finally {
+        setLoading(false);
+        setLoadingProvider(null);
       }
-      if (result.url) {
-        await Linking.openURL(result.url);
-      }
-    } catch {
-      setError(`Ошибка входа через ${provider}`);
-    } finally {
-      setLoading(false);
-      setLoadingProvider(null);
-    }
-  }, [signInWithOAuth]);
+    },
+    [signInWithOAuth],
+  );
 
-  const handleGitHubLogin = useCallback(() => handleOAuthLogin('github'), [handleOAuthLogin]);
-  const handleGoogleLogin = useCallback(() => handleOAuthLogin('google'), [handleOAuthLogin]);
-  const handleAppleLogin = useCallback(() => handleOAuthLogin('apple'), [handleOAuthLogin]);
+  const handleGitHubLogin = useCallback(
+    () => handleOAuthLogin('github'),
+    [handleOAuthLogin],
+  );
+  const handleGoogleLogin = useCallback(
+    () => handleOAuthLogin('google'),
+    [handleOAuthLogin],
+  );
+  const handleAppleLogin = useCallback(
+    () => handleOAuthLogin('apple'),
+    [handleOAuthLogin],
+  );
 
   return (
-    <AuthLayout title="Вход в" highlight="Academy" subtitle="Продолжайте обучение">
+    <AuthLayout
+      title="Вход в"
+      highlight="Academy"
+      subtitle="Продолжайте обучение"
+    >
       {/* OAuth buttons */}
-      <View style={styles.oauthGroup}>
-        <OAuthButton
-          label="Продолжить с GitHub"
-          icon={<GitHubIcon />}
-          onPress={handleGitHubLogin}
-          disabled={loading}
-          loading={loadingProvider === 'github'}
-        />
-        <OAuthButton
-          label="Продолжить с Google"
-          icon={<GoogleIcon />}
-          onPress={handleGoogleLogin}
-          disabled={loading}
-          loading={loadingProvider === 'google'}
-        />
-        {Platform.OS === 'ios' && (
+      <Animated.View style={{ opacity: oauthOpacity }}>
+        <View style={styles.oauthGroup}>
           <OAuthButton
-            label="Продолжить с Apple"
-            icon={<AppleIcon />}
-            onPress={handleAppleLogin}
+            label="Продолжить с GitHub"
+            icon={<GitHubIcon />}
+            onPress={handleGitHubLogin}
             disabled={loading}
-            loading={loadingProvider === 'apple'}
+            loading={loadingProvider === 'github'}
           />
-        )}
-      </View>
+          <OAuthButton
+            label="Продолжить с Google"
+            icon={<GoogleIcon />}
+            onPress={handleGoogleLogin}
+            disabled={loading}
+            loading={loadingProvider === 'google'}
+          />
+          {Platform.OS === 'ios' && (
+            <OAuthButton
+              label="Продолжить с Apple"
+              icon={<AppleIcon />}
+              onPress={handleAppleLogin}
+              disabled={loading}
+              loading={loadingProvider === 'apple'}
+            />
+          )}
+        </View>
+      </Animated.View>
 
-      <AuthDivider />
+      <Animated.View style={{ opacity: dividerOpacity }}>
+        <AuthDivider />
+      </Animated.View>
 
       {/* Email / Password */}
-      <View style={styles.form}>
-        <AuthInput
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoComplete="email"
-          textContentType="emailAddress"
-          returnKeyType="next"
-          onSubmitEditing={() => passwordRef.current?.focus()}
-          blurOnSubmit={false}
-        />
-        <AuthInput
-          ref={passwordRef}
-          placeholder="Пароль"
-          value={password}
-          onChangeText={setPassword}
-          isPassword
-          autoComplete="password"
-          textContentType="password"
-          returnKeyType="go"
-          onSubmitEditing={handleEmailLogin}
-        />
+      <Animated.View style={{ opacity: formOpacity }}>
+        <View style={styles.form}>
+          <AuthInput
+            placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoComplete="email"
+            textContentType="emailAddress"
+            returnKeyType="next"
+            onSubmitEditing={() => passwordRef.current?.focus()}
+            blurOnSubmit={false}
+          />
+          <AuthInput
+            ref={passwordRef}
+            placeholder="Пароль"
+            value={password}
+            onChangeText={setPassword}
+            isPassword
+            autoComplete="password"
+            textContentType="password"
+            returnKeyType="go"
+            onSubmitEditing={handleEmailLogin}
+          />
 
-        {error && <Text style={styles.error}>{error}</Text>}
+          {error && <Text style={styles.error}>{error}</Text>}
 
-        <AuthButton
-          label="Войти"
-          onPress={handleEmailLogin}
-          loading={loading}
-          disabled={!email.trim() || !password}
-        />
-      </View>
+          <AuthButton
+            label="Войти"
+            onPress={handleEmailLogin}
+            loading={loading}
+            disabled={!email.trim() || !password}
+          />
+        </View>
+      </Animated.View>
 
       {/* Links */}
-      <View style={styles.links}>
-        <Text style={styles.link} onPress={() => onNavigate('register')}>
-          Создать аккаунт
-        </Text>
-        <Text style={styles.link} onPress={() => onNavigate('forgot')}>
-          Забыли пароль?
-        </Text>
-      </View>
+      <Animated.View style={{ opacity: linksOpacity }}>
+        <View style={styles.links}>
+          <Text style={styles.link} onPress={() => onNavigate('register')}>
+            Создать аккаунт
+          </Text>
+          <Text style={styles.link} onPress={() => onNavigate('forgot')}>
+            Забыли пароль?
+          </Text>
+        </View>
+      </Animated.View>
     </AuthLayout>
   );
 }

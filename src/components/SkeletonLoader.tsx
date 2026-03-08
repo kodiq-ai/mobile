@@ -53,38 +53,134 @@ function ShimmerBlock({
   );
 }
 
-/** Skeleton placeholder mimicking the courses grid layout */
-export function SkeletonLoader() {
-  return (
-    <View style={styles.container}>
-      {/* Page title skeleton */}
-      <ShimmerBlock width={180} height={24} style={styles.title} />
+export type SkeletonVariant = 'grid' | 'lesson' | 'dashboard' | 'feed';
 
-      {/* Search bar skeleton */}
-      <ShimmerBlock
-        width="100%"
-        height={40}
-        borderRadius={10}
-        style={styles.search}
-      />
+interface SkeletonLoaderProps {
+  variant?: SkeletonVariant;
+}
 
-      {/* Course cards grid (2 columns, 3 rows) */}
-      {[0, 1, 2].map(row => (
-        <View key={row} style={styles.cardRow}>
-          <View style={styles.card}>
-            <ShimmerBlock width="100%" height={100} borderRadius={10} />
-            <ShimmerBlock width="80%" height={14} style={styles.cardTitle} />
-            <ShimmerBlock width="50%" height={10} style={styles.cardSub} />
-          </View>
-          <View style={styles.card}>
-            <ShimmerBlock width="100%" height={100} borderRadius={10} />
-            <ShimmerBlock width="70%" height={14} style={styles.cardTitle} />
-            <ShimmerBlock width="60%" height={10} style={styles.cardSub} />
-          </View>
-        </View>
-      ))}
-    </View>
-  );
+/** Skeleton placeholder with contextual variants */
+export function SkeletonLoader({ variant = 'grid' }: SkeletonLoaderProps) {
+  const renderContent = () => {
+    switch (variant) {
+      case 'lesson':
+        return (
+          <>
+            <ShimmerBlock
+              width="100%"
+              height={160}
+              borderRadius={12}
+              style={styles.title}
+            />
+            <ShimmerBlock width="100%" height={12} style={styles.textLine} />
+            <ShimmerBlock width="90%" height={12} style={styles.textLine} />
+            <ShimmerBlock width="80%" height={12} style={styles.textLine} />
+            <ShimmerBlock width="70%" height={12} style={styles.textLine} />
+            <ShimmerBlock
+              width="100%"
+              height={8}
+              borderRadius={4}
+              style={styles.progressBar}
+            />
+          </>
+        );
+
+      case 'dashboard':
+        return (
+          <>
+            <View style={styles.cardRow}>
+              <ShimmerBlock width="48%" height={80} borderRadius={12} />
+              <ShimmerBlock width="48%" height={80} borderRadius={12} />
+            </View>
+            <ShimmerBlock
+              width="100%"
+              height={160}
+              borderRadius={12}
+              style={styles.chartArea}
+            />
+            {[0, 1, 2].map(i => (
+              <ShimmerBlock
+                key={i}
+                width="100%"
+                height={48}
+                borderRadius={8}
+                style={styles.listItem}
+              />
+            ))}
+          </>
+        );
+
+      case 'feed':
+        return (
+          <>
+            {[0, 1, 2, 3].map(i => (
+              <View key={i} style={styles.feedItem}>
+                <ShimmerBlock width={40} height={40} borderRadius={20} />
+                <View style={styles.feedText}>
+                  <ShimmerBlock width="70%" height={14} />
+                  <ShimmerBlock
+                    width="50%"
+                    height={10}
+                    style={styles.cardSub}
+                  />
+                </View>
+              </View>
+            ))}
+          </>
+        );
+
+      case 'grid':
+      default:
+        return (
+          <>
+            {/* Page title skeleton */}
+            <ShimmerBlock width={180} height={24} style={styles.title} />
+
+            {/* Search bar skeleton */}
+            <ShimmerBlock
+              width="100%"
+              height={40}
+              borderRadius={10}
+              style={styles.search}
+            />
+
+            {/* Course cards grid (2 columns, 3 rows) */}
+            {[0, 1, 2].map(row => (
+              <View key={row} style={styles.cardRow}>
+                <View style={styles.card}>
+                  <ShimmerBlock width="100%" height={100} borderRadius={10} />
+                  <ShimmerBlock
+                    width="80%"
+                    height={14}
+                    style={styles.cardTitle}
+                  />
+                  <ShimmerBlock
+                    width="50%"
+                    height={10}
+                    style={styles.cardSub}
+                  />
+                </View>
+                <View style={styles.card}>
+                  <ShimmerBlock width="100%" height={100} borderRadius={10} />
+                  <ShimmerBlock
+                    width="70%"
+                    height={14}
+                    style={styles.cardTitle}
+                  />
+                  <ShimmerBlock
+                    width="60%"
+                    height={10}
+                    style={styles.cardSub}
+                  />
+                </View>
+              </View>
+            ))}
+          </>
+        );
+    }
+  };
+
+  return <View style={styles.container}>{renderContent()}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -113,5 +209,26 @@ const styles = StyleSheet.create({
   },
   cardSub: {
     marginTop: 6,
+  },
+  textLine: {
+    marginBottom: 10,
+  },
+  feedItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 16,
+  },
+  feedText: {
+    flex: 1,
+  },
+  progressBar: {
+    marginTop: 20,
+  },
+  chartArea: {
+    marginBottom: 16,
+  },
+  listItem: {
+    marginBottom: 8,
   },
 });
