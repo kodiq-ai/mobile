@@ -7,7 +7,7 @@ import { logger } from '../utils/logger';
 const log = logger.child({ module: 'update' });
 
 const VERSION_URL = `${BASE_URL}/api/academy/mobile-version`;
-const APP_VERSION = '1.0.0'; // Keep in sync with package.json
+export const APP_VERSION = '1.0.0'; // Keep in sync with package.json
 
 export type UpdateStatus = 'ok' | 'soft' | 'force';
 
@@ -39,6 +39,7 @@ function compareSemver(a: string, b: string): number {
 export function useForceUpdate() {
   const [status, setStatus] = useState<UpdateStatus>('ok');
   const [storeUrl, setStoreUrl] = useState<string | null>(null);
+  const [requiredVersion, setRequiredVersion] = useState<string | null>(null);
 
   const check = useCallback(async () => {
     try {
@@ -60,12 +61,14 @@ export function useForceUpdate() {
           { current: APP_VERSION, min: data.minVersion },
           'Force update required',
         );
+        setRequiredVersion(data.minVersion);
         setStatus('force');
       } else if (compareSemver(APP_VERSION, data.latestVersion) < 0) {
         log.info(
           { current: APP_VERSION, latest: data.latestVersion },
           'Soft update available',
         );
+        setRequiredVersion(data.latestVersion);
         setStatus('soft');
       } else {
         setStatus('ok');
@@ -90,5 +93,5 @@ export function useForceUpdate() {
     if (status === 'soft') setStatus('ok');
   }, [status]);
 
-  return { status, storeUrl, dismiss };
+  return { status, storeUrl, requiredVersion, dismiss };
 }

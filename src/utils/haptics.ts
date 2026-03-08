@@ -29,6 +29,15 @@ export function hapticSuccess() {
   );
 }
 
+/** Error notification — auth failure, biometric rejection */
+export function hapticError() {
+  if (Platform.OS === 'web') return;
+  ReactNativeHapticFeedback.trigger(
+    HapticFeedbackTypes.notificationError,
+    options,
+  );
+}
+
 /** Selection tick — toggle, picker change */
 export function hapticSelection() {
   if (Platform.OS === 'web') return;

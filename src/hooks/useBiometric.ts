@@ -19,6 +19,8 @@ interface UseBiometricResult {
   isEnabled: boolean;
   /** Current lock state */
   state: BiometricState;
+  /** Biometry type string from Keychain (e.g. 'FaceID', 'TouchID', 'Fingerprint') */
+  biometryType: string | null;
   /** Enable biometric auth */
   enable: () => Promise<boolean>;
   /** Disable biometric auth */
@@ -33,6 +35,7 @@ export function useBiometric(isAuthenticated: boolean): UseBiometricResult {
   const [isAvailable, setIsAvailable] = useState(false);
   const [isEnabled, setIsEnabled] = useState(false);
   const [state, setState] = useState<BiometricState>('idle');
+  const [biometryType, setBiometryType] = useState<string | null>(null);
   const backgroundTimestamp = useRef<number | null>(null);
 
   // Check biometric availability and saved preference
@@ -44,6 +47,7 @@ export function useBiometric(isAuthenticated: boolean): UseBiometricResult {
         const supported = await Keychain.getSupportedBiometryType();
         log.debug({ supported }, 'Biometric availability check');
         setIsAvailable(supported !== null);
+        setBiometryType(supported);
       } catch (err) {
         log.warn({ err }, 'Biometric availability check failed');
         setIsAvailable(false);
@@ -140,5 +144,14 @@ export function useBiometric(isAuthenticated: boolean): UseBiometricResult {
     setState('idle');
   }, []);
 
-  return { isAvailable, isEnabled, state, enable, disable, unlock, dismiss };
+  return {
+    isAvailable,
+    isEnabled,
+    state,
+    biometryType,
+    enable,
+    disable,
+    unlock,
+    dismiss,
+  };
 }

@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   Platform,
   Pressable,
   StyleSheet,
@@ -11,6 +12,8 @@ import { COLORS } from '../config';
 import type { MobileNavConfig } from '../types/nav';
 import { KodiqLogo } from './icons/KodiqLogo';
 import { getNavIcon } from './icons/NavIcons';
+
+const FADE_DURATION = 150;
 
 interface NativeHeaderProps {
   config: MobileNavConfig;
@@ -38,6 +41,30 @@ export function NativeHeader({
   const BellIcon = getNavIcon('Bell');
   const SearchIcon = getNavIcon('Search');
   const showBadge = notificationCount > 0;
+
+  // Animated title transition
+  const titleOpacity = useRef(new Animated.Value(1)).current;
+  const [displayTitle, setDisplayTitle] = useState(title);
+  const prevTitle = useRef(title);
+
+  useEffect(() => {
+    if (title === prevTitle.current) return;
+    prevTitle.current = title;
+
+    // Fade out → update → fade in
+    Animated.timing(titleOpacity, {
+      toValue: 0,
+      duration: FADE_DURATION,
+      useNativeDriver: true,
+    }).start(() => {
+      setDisplayTitle(title);
+      Animated.timing(titleOpacity, {
+        toValue: 1,
+        duration: FADE_DURATION,
+        useNativeDriver: true,
+      }).start();
+    });
+  }, [title, titleOpacity]);
 
   return (
     <View style={styles.container}>
@@ -71,11 +98,14 @@ export function NativeHeader({
             </View>
           )}
 
-          {/* Title when navigating deep */}
-          {canGoBack && title ? (
-            <Text style={styles.title} numberOfLines={1}>
-              {title}
-            </Text>
+          {/* Animated title when navigating deep */}
+          {canGoBack && displayTitle ? (
+            <Animated.Text
+              style={[styles.title, { opacity: titleOpacity }]}
+              numberOfLines={1}
+            >
+              {displayTitle}
+            </Animated.Text>
           ) : null}
         </View>
 

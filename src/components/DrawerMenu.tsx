@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -18,6 +19,8 @@ import { KodiqLogo } from './icons/KodiqLogo';
 import { getNavIcon } from './icons/NavIcons';
 
 const DRAWER_WIDTH = 280;
+const SWIPE_THRESHOLD = 80;
+const VELOCITY_THRESHOLD = -0.5;
 
 interface DrawerMenuProps {
   visible: boolean;
@@ -41,6 +44,61 @@ export function DrawerMenu({
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const overlayAnim = useRef(new Animated.Value(0)).current;
   const [isMounted, setIsMounted] = useState(false);
+  const dragging = useRef(false);
+
+  const drawerWidth = Math.min(DRAWER_WIDTH, screenWidth * 0.8);
+
+  // PanResponder for swipe-to-close on the drawer panel
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+          // Capture phase: win over ScrollView for leftward horizontal swipes
+          return (
+            gestureState.dx < -10 &&
+            Math.abs(gestureState.dy) < Math.abs(gestureState.dx)
+          );
+        },
+        onPanResponderGrant: () => {
+          dragging.current = true;
+          hapticLight();
+        },
+        onPanResponderMove: (_, gestureState) => {
+          // Clamp: drawer can only move left (negative translateX)
+          const newX = Math.min(0, gestureState.dx);
+          slideAnim.setValue(newX);
+          // Overlay opacity: 1 at x=0, 0 at x=-drawerWidth
+          overlayAnim.setValue(1 + newX / drawerWidth);
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          dragging.current = false;
+          const shouldClose =
+            gestureState.dx < -SWIPE_THRESHOLD ||
+            gestureState.vx < VELOCITY_THRESHOLD;
+
+          if (shouldClose) {
+            onClose();
+          } else {
+            // Spring back to open
+            Animated.parallel([
+              Animated.spring(slideAnim, {
+                toValue: 0,
+                useNativeDriver: true,
+                friction: 8,
+                tension: 40,
+              }),
+              Animated.spring(overlayAnim, {
+                toValue: 1,
+                useNativeDriver: true,
+                friction: 8,
+                tension: 40,
+              }),
+            ]).start();
+          }
+        },
+      }),
+    [slideAnim, overlayAnim, drawerWidth, onClose],
+  );
 
   useEffect(() => {
     if (visible) {
@@ -59,7 +117,6 @@ export function DrawerMenu({
         }),
       ]).start();
     } else if (isMounted) {
-      // Animate close, then unmount
       Animated.parallel([
         Animated.timing(slideAnim, {
           toValue: -DRAWER_WIDTH,
@@ -83,18 +140,17 @@ export function DrawerMenu({
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       {/* Overlay */}
-      <Animated.View
-        style={[styles.overlay, { opacity: overlayAnim }]}
-      >
+      <Animated.View style={[styles.overlay, { opacity: overlayAnim }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
 
-      {/* Drawer panel */}
+      {/* Drawer panel with swipe gesture */}
       <Animated.View
+        {...panResponder.panHandlers}
         style={[
           styles.drawer,
           {
-            width: Math.min(DRAWER_WIDTH, screenWidth * 0.8),
+            width: drawerWidth,
             transform: [{ translateX: slideAnim }],
             paddingTop: insets.top + 8,
             paddingBottom: insets.bottom + 8,
@@ -139,7 +195,7 @@ export function DrawerMenu({
               {section.title && (
                 <Text style={styles.sectionTitle}>{section.title}</Text>
               )}
-              {section.items.map((item) => {
+              {section.items.map(item => {
                 const Icon = getNavIcon(item.icon);
                 return (
                   <Pressable
