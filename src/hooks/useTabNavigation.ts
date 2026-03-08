@@ -51,12 +51,12 @@ export function useTabNavigation(tabs: TabItem[]): UseTabNavigationResult {
 
   const tabStatesRef = useRef<Record<string, TabState>>(buildInitialStates());
   const [activeTabId, setActiveTabId] = useState(() => {
-    const first = tabs.find((t) => !t.path.startsWith('__'));
+    const first = tabs.find(t => !t.path.startsWith('__'));
     return first?.id ?? tabs[0]?.id ?? '';
   });
   const [canGoBack, setCanGoBack] = useState(false);
   const [title, setTitle] = useState(() => {
-    const first = tabs.find((t) => !t.path.startsWith('__'));
+    const first = tabs.find(t => !t.path.startsWith('__'));
     return first?.labelFallback ?? '';
   });
 
@@ -93,14 +93,48 @@ export function useTabNavigation(tabs: TabItem[]): UseTabNavigationResult {
     [syncStates],
   );
 
+  // Resolve which tab owns a given path (exact rootPath or prefix match)
+  const findOwningTabId = useCallback(
+    (path: string): string | null => {
+      // 1. Exact rootPath match (highest priority)
+      for (const tab of tabs) {
+        if (tab.path.startsWith('__')) continue;
+        if (path === tab.path) return tab.id;
+      }
+      // 2. Prefix match — longest wins (skip '/' to avoid matching everything)
+      let best: { id: string; len: number } | null = null;
+      for (const tab of tabs) {
+        if (tab.path.startsWith('__') || tab.path === '/') continue;
+        if (
+          path.startsWith(tab.path + '/') &&
+          (!best || tab.path.length > best.len)
+        ) {
+          best = { id: tab.id, len: tab.path.length };
+        }
+      }
+      return best?.id ?? null;
+    },
+    [tabs],
+  );
+
   const onPageChange = useCallback(
     (path: string, pageTitle: string) => {
       syncStates();
       const states = tabStatesRef.current;
-      const state = states[activeTabId];
+
+      // Auto-detect which tab owns this path
+      const owningTabId = findOwningTabId(path);
+      const effectiveTabId = owningTabId ?? activeTabId;
+
+      // Auto-switch tab if path belongs to a different one
+      if (effectiveTabId !== activeTabId) {
+        setActiveTabId(effectiveTabId);
+      }
+
+      const state = states[effectiveTabId];
       if (!state) return;
 
-      // Only push to history if path actually changed
+      // Only push to history if path actually changed within this tab
       if (path !== state.currentPath) {
         state.history.push(state.currentPath);
         state.currentPath = path;
@@ -110,7 +144,7 @@ export function useTabNavigation(tabs: TabItem[]): UseTabNavigationResult {
       setCanGoBack(state.history.length > 0);
       setTitle(pageTitle);
     },
-    [activeTabId, syncStates],
+    [activeTabId, syncStates, findOwningTabId],
   );
 
   const goBack = useCallback((): string | null => {
