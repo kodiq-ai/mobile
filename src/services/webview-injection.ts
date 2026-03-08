@@ -38,6 +38,7 @@ export function buildSessionInjectionJS(session: Session): string {
     (function() {
       try {
         window.__KODIQ_NATIVE__ = true;
+        document.documentElement.setAttribute('data-native', '');
 
         // 1. localStorage for client-side Supabase
         localStorage.setItem('${STORAGE_KEY}', ${JSON.stringify(sessionJSON)});
@@ -86,6 +87,7 @@ export function buildNavigateJS(path: string): string {
 export const INJECTED_JS_NO_SESSION = `
   (function() {
     window.__KODIQ_NATIVE__ = true;
+    document.documentElement.setAttribute('data-native', '');
     try {
       if (document.body) {
         document.body.style.overscrollBehavior = 'none';
