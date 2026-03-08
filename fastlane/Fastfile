@@ -87,12 +87,42 @@ platform :ios do
     cap_types = caps.map(&:capability_type)
     UI.message("Current capabilities: #{cap_types.join(', ')}")
 
-    # Enable App Groups if missing
-    unless cap_types.include?("APP_GROUPS")
-      bundle_id.create_capability(Spaceship::ConnectAPI::BundleIdCapability::Type::APP_GROUPS)
-      UI.success("Enabled App Groups capability")
+    # Enable App Groups with specific group identifier
+    app_group_cap = caps.find { |c| c.capability_type == "APP_GROUPS" }
+    if app_group_cap
+      # Update existing capability to include our group identifier
+      begin
+        Spaceship::ConnectAPI.patch_bundle_id_capability(
+          bundle_id_capability_id: app_group_cap.id,
+          capability_type: "APP_GROUPS",
+          settings: [
+            {
+              key: "APP_GROUP_IDENTIFIERS",
+              options: [
+                { key: "group.ai.kodiq", name: "group.ai.kodiq", description: "Kodiq Shared" },
+              ],
+            },
+          ],
+        )
+        UI.success("Updated App Groups with group.ai.kodiq")
+      rescue => e
+        UI.important("App Groups update note: #{e.message}")
+      end
     else
-      UI.success("App Groups already enabled")
+      # Create capability with group identifier
+      Spaceship::ConnectAPI.post_bundle_id_capability(
+        bundle_id_id: bundle_id.id,
+        capability_type: "APP_GROUPS",
+        settings: [
+          {
+            key: "APP_GROUP_IDENTIFIERS",
+            options: [
+              { key: "group.ai.kodiq", name: "group.ai.kodiq", description: "Kodiq Shared" },
+            ],
+          },
+        ],
+      )
+      UI.success("Created App Groups capability with group.ai.kodiq")
     end
 
     # Enable Push Notifications if missing
