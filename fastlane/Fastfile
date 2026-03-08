@@ -66,58 +66,6 @@ platform :ios do
     end
   end
 
-  # --- Capabilities ---
-
-  desc "Ensure App ID has App Groups capability via ASC API"
-  lane :fix_capabilities do
-    api_key
-
-    require "spaceship"
-    token = Spaceship::ConnectAPI::Token.from(hash: lane_context[SharedValues::APP_STORE_CONNECT_API_KEY])
-    Spaceship::ConnectAPI.token = token
-
-    # Find the Bundle ID via ASC API
-    resp = Spaceship::ConnectAPI.get_bundle_ids(filter: { identifier: "ai.kodiq" })
-    bundle_id = resp.first
-    UI.user_error!("Bundle ID ai.kodiq not found") unless bundle_id
-    UI.success("Found Bundle ID: #{bundle_id.identifier} (#{bundle_id.id})")
-
-    # Check existing capabilities
-    caps = bundle_id.get_capabilities
-    cap_types = caps.map(&:capability_type)
-    UI.message("Current capabilities: #{cap_types.join(', ')}")
-
-    # Ensure App Groups with group.ai.kodiq identifier.
-    # Delete and recreate to guarantee settings include the group ID.
-    app_group_cap = caps.find { |c| c.capability_type == "APP_GROUPS" }
-    if app_group_cap
-      Spaceship::ConnectAPI.delete_bundle_id_capability(bundle_id_capability_id: app_group_cap.id)
-      UI.message("Removed existing App Groups capability to recreate with settings")
-    end
-
-    Spaceship::ConnectAPI.post_bundle_id_capability(
-      bundle_id_id: bundle_id.id,
-      capability_type: "APP_GROUPS",
-      settings: [
-        {
-          key: "APP_GROUP_IDENTIFIERS",
-          options: [
-            { key: "group.ai.kodiq", name: "Kodiq Shared" },
-          ],
-        },
-      ],
-    )
-    UI.success("Created App Groups capability with group.ai.kodiq")
-
-    # Enable Push Notifications if missing
-    unless cap_types.include?("PUSH_NOTIFICATIONS")
-      bundle_id.create_capability(Spaceship::ConnectAPI::BundleIdCapability::Type::PUSH_NOTIFICATIONS)
-      UI.success("Enabled Push Notifications capability")
-    else
-      UI.success("Push Notifications already enabled")
-    end
-  end
-
   # --- Build ---
 
   desc "Build and upload to TestFlight"
@@ -126,9 +74,7 @@ platform :ios do
 
     api_key
 
-    fix_capabilities
-
-    match(type: "appstore", readonly: false, force: true)
+    match(type: "appstore", readonly: false)
 
     cocoapods(
       podfile: "./ios/Podfile",
