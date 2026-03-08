@@ -1,4 +1,4 @@
-import { NativeModules, Platform } from 'react-native';
+import { NativeModules } from 'react-native';
 
 export interface ReminderSchedule {
   hour: number;
@@ -17,27 +17,21 @@ export const scheduleDailyReminder = async (
   hour: number,
   minute: number,
 ): Promise<boolean> => {
-  if (Platform.OS !== 'android' || !ReminderScheduler) {
-    return false;
-  }
+  if (!ReminderScheduler) return false;
   return ReminderScheduler.scheduleDaily(hour, minute);
 };
 
 export const cancelReminder = async (): Promise<boolean> => {
-  if (Platform.OS !== 'android' || !ReminderScheduler) {
-    return false;
-  }
+  if (!ReminderScheduler) return false;
   return ReminderScheduler.cancel();
 };
 
 export const getReminderSchedule =
   async (): Promise<ReminderSchedule | null> => {
-    if (Platform.OS !== 'android' || !ReminderScheduler) {
-      return null;
-    }
+    if (!ReminderScheduler) return null;
     return ReminderScheduler.getSchedule();
   };
 
 export const isReminderSupported = (): boolean => {
-  return Platform.OS === 'android' && ReminderScheduler != null;
+  return ReminderScheduler != null;
 };

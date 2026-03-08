@@ -46,11 +46,11 @@ export async function promptAppRating(_event?: string): Promise<void> {
     if (elapsed < COOLDOWN_MS) return;
   }
 
-  // Try native API first
+  // Try native API first (Android: Google Play Core, iOS: StoreKit)
   const InAppReview = NativeModules.InAppReview as
     | { requestReview: () => Promise<boolean> }
     | undefined;
-  if (Platform.OS === 'android' && InAppReview?.requestReview) {
+  if (InAppReview?.requestReview) {
     try {
       await InAppReview.requestReview();
       state.promptCount += 1;
