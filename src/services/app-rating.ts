@@ -1,64 +1,76 @@
 /**
- * In-app rating prompt using native store review APIs.
- *
- * iOS: SKStoreReviewController (max 3 prompts/year, Apple controls display)
- * Android: Google Play In-App Review API
- *
- * Rate limiting: max once per 30 days, tracked in AsyncStorage.
+ * In-app rating prompt using Google Play In-App Review API (Android)
+ * with session gating, cooldown, and store URL fallback.
  */
+import { NativeModules, Platform, Linking } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Linking, Platform } from 'react-native';
 
-const STORAGE_KEY = 'kodiq:last-rating-prompt';
-const COOLDOWN_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const RATING_KEY = '@kodiq/rating';
+const MAX_NATIVE_PROMPTS = 3;
+const COOLDOWN_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
+const MIN_SESSIONS = 5;
 
-const STORE_URLS = {
-  ios: 'https://apps.apple.com/app/kodiq-academy/id0000000000?action=write-review',
-  android: 'https://play.google.com/store/apps/details?id=ai.kodiq',
-};
-
-/**
- * Request an in-app review prompt if enough time has passed.
- * Returns true if the prompt was shown (or attempted).
- */
-export async function requestReviewIfEligible(): Promise<boolean> {
-  try {
-    const lastPrompt = await AsyncStorage.getItem(STORAGE_KEY);
-    if (lastPrompt) {
-      const elapsed = Date.now() - Number(lastPrompt);
-      if (elapsed < COOLDOWN_MS) return false;
-    }
-
-    await AsyncStorage.setItem(STORAGE_KEY, String(Date.now()));
-
-    // Use native review API when available, fallback to store link
-    if (Platform.OS === 'ios') {
-      // SKStoreReviewController is available via Linking on iOS 10.3+
-      // Apple controls whether the dialog actually appears
-      const iosReviewUrl = `itms-apps://itunes.apple.com/app/id0000000000?action=write-review`;
-      const canOpen = await Linking.canOpenURL(iosReviewUrl);
-      if (canOpen) {
-        await Linking.openURL(iosReviewUrl);
-        return true;
-      }
-    }
-
-    // Fallback: open store page
-    const url = Platform.OS === 'ios' ? STORE_URLS.ios : STORE_URLS.android;
-    await Linking.openURL(url);
-    return true;
-  } catch {
-    return false;
-  }
+interface RatingState {
+  promptCount: number;
+  lastPromptAt: number;
+  sessionCount: number;
 }
 
-/**
- * Handle milestone events from bridge that may trigger a review prompt.
- * Called when web sends `{ type: "milestone", event: "..." }`.
- */
-export async function handleMilestoneForReview(event: string): Promise<void> {
-  const triggerEvents = ['part_completed', 'certificate_earned', 'streak_7'];
-  if (triggerEvents.includes(event)) {
-    await requestReviewIfEligible();
+async function getRatingState(): Promise<RatingState> {
+  try {
+    const raw = await AsyncStorage.getItem(RATING_KEY);
+    if (raw) return JSON.parse(raw) as RatingState;
+  } catch {}
+  return { promptCount: 0, lastPromptAt: 0, sessionCount: 0 };
+}
+
+async function setRatingState(state: RatingState): Promise<void> {
+  await AsyncStorage.setItem(RATING_KEY, JSON.stringify(state));
+}
+
+export async function recordSession(): Promise<void> {
+  const state = await getRatingState();
+  state.sessionCount += 1;
+  await setRatingState(state);
+}
+
+export async function promptAppRating(_event?: string): Promise<void> {
+  const state = await getRatingState();
+
+  // Not enough sessions
+  if (state.sessionCount < MIN_SESSIONS) return;
+
+  // Max prompts reached — use cooldown
+  if (state.promptCount >= MAX_NATIVE_PROMPTS) {
+    const elapsed = Date.now() - state.lastPromptAt;
+    if (elapsed < COOLDOWN_MS) return;
+  }
+
+  // Try native API first
+  const InAppReview = NativeModules.InAppReview as
+    | { requestReview: () => Promise<boolean> }
+    | undefined;
+  if (Platform.OS === 'android' && InAppReview?.requestReview) {
+    try {
+      await InAppReview.requestReview();
+      state.promptCount += 1;
+      state.lastPromptAt = Date.now();
+      await setRatingState(state);
+      return;
+    } catch {
+      // Fall through to store URL
+    }
+  }
+
+  // Fallback: open store URL
+  const storeUrl = Platform.select({
+    android: 'https://play.google.com/store/apps/details?id=ai.kodiq',
+    ios: 'https://apps.apple.com/app/kodiq/id000000000',
+  });
+  if (storeUrl) {
+    state.promptCount += 1;
+    state.lastPromptAt = Date.now();
+    await setRatingState(state);
+    void Linking.openURL(storeUrl);
   }
 }

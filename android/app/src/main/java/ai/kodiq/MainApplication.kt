@@ -18,6 +18,8 @@ class MainApplication : Application(), ReactApplication {
       packageList =
         PackageList(this).packages.apply {
           add(StreakWidgetPackage())
+          add(InAppReviewPackage())
+          add(ReminderSchedulerPackage())
         },
     )
   }

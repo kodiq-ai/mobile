@@ -122,6 +122,9 @@ dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
 
+    // Google Play In-App Review API
+    implementation "com.google.android.play:review-ktx:2.0.2"
+
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
     } else {

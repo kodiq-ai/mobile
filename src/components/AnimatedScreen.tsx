@@ -20,14 +20,16 @@ export function AnimatedScreen({ children, screenKey }: AnimatedScreenProps) {
     translateY.setValue(12);
 
     Animated.parallel([
-      Animated.timing(opacity, {
+      Animated.spring(opacity, {
         toValue: 1,
-        duration: 250,
+        friction: 8,
+        tension: 40,
         useNativeDriver: true,
       }),
-      Animated.timing(translateY, {
+      Animated.spring(translateY, {
         toValue: 0,
-        duration: 250,
+        friction: 8,
+        tension: 40,
         useNativeDriver: true,
       }),
     ]).start();

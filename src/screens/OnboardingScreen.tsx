@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -70,6 +70,17 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const flatListRef = useRef<FlatList>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollX = useRef(new Animated.Value(0)).current;
+  const iconScale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    iconScale.setValue(0.8);
+    Animated.spring(iconScale, {
+      toValue: 1,
+      friction: 5,
+      tension: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [activeIndex, iconScale]);
 
   const handleComplete = useCallback(async () => {
     await AsyncStorage.setItem(ONBOARDING_DONE_KEY, 'true');
@@ -98,19 +109,24 @@ export function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
     }
   }, [activeIndex, handleComplete]);
 
-  const renderSlide = useCallback(({ item }: { item: Slide }) => {
-    const Icon = getNavIcon(item.icon);
-    return (
-      <View style={styles.slide}>
-        <View style={styles.iconCircle}>
-          <Icon size={40} color={COLORS.accent} />
+  const renderSlide = useCallback(
+    ({ item }: { item: Slide }) => {
+      const Icon = getNavIcon(item.icon);
+      return (
+        <View style={styles.slide}>
+          <Animated.View style={{ transform: [{ scale: iconScale }] }}>
+            <View style={styles.iconCircle}>
+              <Icon size={40} color={COLORS.accent} />
+            </View>
+          </Animated.View>
+          <Text style={styles.slideTitle}>{item.title}</Text>
+          <Text style={styles.slideSubtitle}>{item.subtitle}</Text>
+          <Text style={styles.slideDescription}>{item.description}</Text>
         </View>
-        <Text style={styles.slideTitle}>{item.title}</Text>
-        <Text style={styles.slideSubtitle}>{item.subtitle}</Text>
-        <Text style={styles.slideDescription}>{item.description}</Text>
-      </View>
-    );
-  }, []);
+      );
+    },
+    [iconScale],
+  );
 
   const isLastSlide = activeIndex === SLIDES.length - 1;
 

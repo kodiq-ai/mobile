@@ -37,4 +37,28 @@
             android:targetClass="ai.kodiq.MainActivity"
             android:data="kodiq://search" />
     </shortcut>
+    <shortcut
+        android:shortcutId="ai_mentor"
+        android:enabled="true"
+        android:shortcutShortLabel="@string/shortcut_ai_mentor"
+        android:shortcutLongLabel="@string/shortcut_ai_mentor_long"
+        android:icon="@drawable/ic_shortcut_ai">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="ai.kodiq"
+            android:targetClass="ai.kodiq.MainActivity"
+            android:data="kodiq://ai-mentor" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="continue_lesson"
+        android:enabled="true"
+        android:shortcutShortLabel="@string/shortcut_continue"
+        android:shortcutLongLabel="@string/shortcut_continue_long"
+        android:icon="@drawable/ic_shortcut_continue">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="ai.kodiq"
+            android:targetClass="ai.kodiq.MainActivity"
+            android:data="kodiq://continue" />
+    </shortcut>
 </shortcuts>

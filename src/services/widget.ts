@@ -2,6 +2,12 @@ import { NativeModules } from 'react-native';
 
 interface StreakWidgetModule {
   updateStreak(streak: number, challengeDone: boolean): Promise<boolean>;
+  updateExtended?(
+    streak: number,
+    done: boolean,
+    progress: number,
+    lessonTitle: string | null,
+  ): void;
 }
 
 const { StreakWidget } = NativeModules as {
@@ -21,4 +27,14 @@ export async function updateStreakWidget(
   if (StreakWidget) {
     await StreakWidget.updateStreak(streak, challengeDone);
   }
+}
+
+export function updateExtendedWidget(
+  streak: number,
+  done: boolean,
+  progress: number,
+  lessonTitle: string | null,
+): void {
+  if (!StreakWidget?.updateExtended) return;
+  StreakWidget.updateExtended(streak, done, progress, lessonTitle);
 }
