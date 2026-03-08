@@ -66,6 +66,53 @@ platform :ios do
     end
   end
 
+  # --- Capabilities ---
+
+  desc "Ensure App ID has App Groups capability via ASC API"
+  lane :fix_capabilities do
+    api_key
+
+    require "spaceship"
+    token = Spaceship::ConnectAPI::Token.from(hash: lane_context[SharedValues::APP_STORE_CONNECT_API_KEY])
+    Spaceship::ConnectAPI.token = token
+
+    # Find the Bundle ID
+    bundle_ids = Spaceship::ConnectAPI.get_bundle_ids(filter: { identifier: "ai.kodiq" }).all_pages_each.to_a
+    bundle_id = bundle_ids.first
+    UI.user_error!("Bundle ID ai.kodiq not found") unless bundle_id
+
+    # Check existing capabilities
+    caps = bundle_id.get_capabilities
+    has_app_groups = caps.any? { |c| c.capability_type == "APP_GROUPS" }
+
+    unless has_app_groups
+      Spaceship::ConnectAPI.post_bundle_id_capability(
+        bundle_id_id: bundle_id.id,
+        capability_type: "APP_GROUPS",
+        settings: [
+          {
+            key: "APP_GROUP_IDENTIFIERS",
+            options: [{ key: "group.ai.kodiq" }],
+          },
+        ],
+      )
+      UI.success("Enabled App Groups capability on ai.kodiq")
+    else
+      UI.success("App Groups capability already enabled")
+    end
+
+    # Also ensure Push Notifications
+    has_push = caps.any? { |c| c.capability_type == "PUSH_NOTIFICATIONS" }
+    unless has_push
+      Spaceship::ConnectAPI.post_bundle_id_capability(
+        bundle_id_id: bundle_id.id,
+        capability_type: "PUSH_NOTIFICATIONS",
+        settings: [],
+      )
+      UI.success("Enabled Push Notifications capability")
+    end
+  end
+
   # --- Build ---
 
   desc "Build and upload to TestFlight"
@@ -74,7 +121,9 @@ platform :ios do
 
     api_key
 
-    match(type: "appstore", readonly: false)
+    fix_capabilities
+
+    match(type: "appstore", readonly: false, force: true)
 
     cocoapods(
       podfile: "./ios/Podfile",
