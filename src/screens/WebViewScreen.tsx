@@ -23,6 +23,7 @@ import { NativeHeader } from '../components/NativeHeader';
 import { NativeTabBar } from '../components/NativeTabBar';
 import { SkeletonLoader } from '../components/SkeletonLoader';
 import { useNavConfig } from '../hooks/useNavConfig';
+import { useTabNavigation } from '../hooks/useTabNavigation';
 import type { WebToNativeMessage } from '../types/bridge';
 import {
   buildNavigateJS,
@@ -50,18 +51,17 @@ export function WebViewScreen({
   updateBanner,
 }: WebViewScreenProps) {
   const webViewRef = useRef<WebView>(null);
-  const canGoBackRef = useRef(false);
   const insets = useSafeAreaInsets();
   const { signOut } = useAuth();
   const navConfig = useNavConfig();
+  const tabNav = useTabNavigation(navConfig.tabs);
 
-  // Navigation state from bridge
-  const [activePath, setActivePath] = useState('/');
-  const [pageTitle, setPageTitle] = useState('');
-  const [pageCanGoBack, setPageCanGoBack] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [contentLoaded, setContentLoaded] = useState(false);
+
+  // Fallback timer — force reload if no page_meta within 1.5s after tab switch
+  const pageMetaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Re-inject session when token refreshes
   const prevTokenRef = useRef(session.access_token);
@@ -82,15 +82,25 @@ export function WebViewScreen({
         setDrawerVisible(false);
         return true;
       }
-      if (canGoBackRef.current && webViewRef.current) {
-        webViewRef.current.goBack();
+
+      // Navigate back within tab's own history
+      const prevPath = tabNav.goBack();
+      if (prevPath && webViewRef.current) {
+        webViewRef.current.injectJavaScript(buildNavigateJS(prevPath));
         return true;
       }
+
+      // At tab root — open drawer instead of exiting
+      if (!tabNav.canGoBack) {
+        setDrawerVisible(true);
+        return true;
+      }
+
       return false;
     });
 
     return () => handler.remove();
-  }, [drawerVisible]);
+  }, [drawerVisible, tabNav]);
 
   // Deep link navigation — validate origin before navigating
   useEffect(() => {
@@ -110,16 +120,7 @@ export function WebViewScreen({
 
   const handleNavigationStateChange = useCallback(
     (navState: WebViewNavigation) => {
-      canGoBackRef.current = navState.canGoBack;
-
-      try {
-        const url = new URL(navState.url);
-        const path = url.pathname.replace(/^\/academy/, '') || '/';
-        setActivePath(path);
-      } catch {
-        // Invalid URL
-      }
-
+      // Detect if WebView navigated to login page (session expired in web)
       if (navState.url.includes('/auth/login')) {
         void signOut();
       }
@@ -137,10 +138,13 @@ export function WebViewScreen({
           {
             // eslint-disable-next-line @typescript-eslint/no-misused-promises -- untyped
             onSignOut: signOut,
-            onPageMeta: (title, path, canGoBack) => {
-              setPageTitle(title);
-              setActivePath(path);
-              setPageCanGoBack(canGoBack);
+            onPageMeta: (title, path) => {
+              // Clear fallback timer — we got a response from the bridge
+              if (pageMetaTimerRef.current) {
+                clearTimeout(pageMetaTimerRef.current);
+                pageMetaTimerRef.current = null;
+              }
+              tabNav.onPageChange(path, title);
             },
             onNotificationCount: setNotificationCount,
             onContentLoaded: () => setContentLoaded(true),
@@ -151,7 +155,7 @@ export function WebViewScreen({
         // Ignore non-JSON messages
       }
     },
-    [signOut, contentLoaded],
+    [signOut, contentLoaded, tabNav],
   );
 
   const handleShouldStartLoad = useCallback(
@@ -173,16 +177,34 @@ export function WebViewScreen({
       `);
       return;
     }
-    webViewRef.current?.injectJavaScript(buildNavigateJS(path));
-  }, []);
+
+    // Find tab by path and switch via tab navigation
+    const tab = navConfig.tabs.find((t) => t.path === path);
+    if (!tab) return;
+
+    const navPath = tabNav.switchTab(tab.id);
+    if (navPath && webViewRef.current) {
+      webViewRef.current.injectJavaScript(buildNavigateJS(navPath));
+
+      // Fallback: force reload if no page_meta within 1.5s
+      if (pageMetaTimerRef.current) clearTimeout(pageMetaTimerRef.current);
+      pageMetaTimerRef.current = setTimeout(() => {
+        webViewRef.current?.injectJavaScript(
+          `window.location.href = 'https://kodiq.ai${navPath}'; true;`,
+        );
+        pageMetaTimerRef.current = null;
+      }, 1500);
+    }
+  }, [navConfig.tabs, tabNav]);
 
   const handleBurgerPress = useCallback(() => setDrawerVisible(true), []);
 
   const handleBackPress = useCallback(() => {
-    if (canGoBackRef.current && webViewRef.current) {
-      webViewRef.current.goBack();
+    const prevPath = tabNav.goBack();
+    if (prevPath && webViewRef.current) {
+      webViewRef.current.injectJavaScript(buildNavigateJS(prevPath));
     }
-  }, []);
+  }, [tabNav]);
 
   const handleNotificationPress = useCallback(() => {
     webViewRef.current?.injectJavaScript(buildNavigateJS('/notifications'));
@@ -235,8 +257,8 @@ export function WebViewScreen({
       {/* Native Header */}
       <NativeHeader
         config={navConfig}
-        title={pageTitle}
-        canGoBack={pageCanGoBack}
+        title={tabNav.title}
+        canGoBack={tabNav.canGoBack}
         notificationCount={notificationCount}
         onBurgerPress={handleBurgerPress}
         onBackPress={handleBackPress}
@@ -280,7 +302,7 @@ export function WebViewScreen({
       {/* Native Tab Bar */}
       <NativeTabBar
         tabs={navConfig.tabs}
-        activePath={activePath}
+        activePath={tabNav.getActiveState().currentPath}
         notificationCount={notificationCount}
         onTabPress={handleTabPress}
       />
