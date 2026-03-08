@@ -5,10 +5,12 @@ import { KodiqLogo } from '../components/icons/KodiqLogo';
 import { COLORS } from '../config';
 
 const FONT_MONO = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+const PROGRESS_WIDTH = 120;
 
 export function SplashScreen() {
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.92)).current;
+  const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.parallel([
@@ -24,7 +26,19 @@ export function SplashScreen() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [opacity, scale]);
+
+    // Progress bar: 0→100% over 2s (useNativeDriver: false for width)
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: 2000,
+      useNativeDriver: false,
+    }).start();
+  }, [opacity, scale, progress]);
+
+  const progressWidth = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, PROGRESS_WIDTH],
+  });
 
   return (
     <Animated.View style={[styles.container, { opacity }]}>
@@ -37,8 +51,17 @@ export function SplashScreen() {
           <Animated.View style={styles.divider} />
           <Animated.Text style={styles.subtitle}>Academy</Animated.Text>
         </View>
+
+        {/* Progress bar */}
+        <View style={styles.progressTrack}>
+          <Animated.View
+            style={[styles.progressFill, { width: progressWidth }]}
+          />
+        </View>
       </Animated.View>
-      <Animated.Text style={styles.tagline}>AI Solo Founder Program</Animated.Text>
+      <Animated.Text style={styles.tagline}>
+        AI Solo Founder Program
+      </Animated.Text>
     </Animated.View>
   );
 }
@@ -79,6 +102,19 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.accent,
     letterSpacing: 0.5,
+  },
+  progressTrack: {
+    width: PROGRESS_WIDTH,
+    height: 2,
+    backgroundColor: COLORS.border,
+    borderRadius: 1,
+    marginTop: 20,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: 2,
+    backgroundColor: COLORS.accent,
+    borderRadius: 1,
   },
   tagline: {
     fontFamily: FONT_MONO,

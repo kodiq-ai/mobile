@@ -33,6 +33,7 @@ import {
 import { RegisterScreen } from './src/screens/RegisterScreen';
 import { SplashScreen } from './src/screens/SplashScreen';
 import { WebViewScreen } from './src/screens/WebViewScreen';
+import { ToastProvider } from './src/components/Toast';
 import { WhatsNewModal } from './src/components/WhatsNewModal';
 import { useBiometric } from './src/hooks/useBiometric';
 import { useWhatsNew } from './src/hooks/useWhatsNew';
@@ -48,6 +49,7 @@ function AppContent() {
   const {
     status: updateStatus,
     storeUrl,
+    requiredVersion,
     dismiss: dismissUpdate,
   } = useForceUpdate();
 
@@ -116,7 +118,12 @@ function AppContent() {
 
   // Force update — blocking screen
   if (updateStatus === 'force') {
-    return <ForceUpdateScreen storeUrl={storeUrl} />;
+    return (
+      <ForceUpdateScreen
+        storeUrl={storeUrl}
+        requiredVersion={requiredVersion}
+      />
+    );
   }
 
   // Offline on cold start (no previous WebView cache)
@@ -166,7 +173,11 @@ function AppContent() {
   // Biometric lock gate
   if (biometric.state === 'locked' || biometric.state === 'prompting') {
     return (
-      <BiometricLockScreen onUnlock={biometric.unlock} onSignOut={signOut} />
+      <BiometricLockScreen
+        onUnlock={biometric.unlock}
+        onSignOut={signOut}
+        biometryType={biometric.biometryType}
+      />
     );
   }
 
@@ -223,7 +234,9 @@ export default function App() {
             translucent={false}
           />
           <AuthProvider>
-            <AppContent />
+            <ToastProvider>
+              <AppContent />
+            </ToastProvider>
           </AuthProvider>
         </SafeAreaProvider>
       </PostHogProvider>
