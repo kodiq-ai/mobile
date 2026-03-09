@@ -6,9 +6,6 @@ import { NAV_CONFIG_URL } from '../config';
 import { FALLBACK_NAV_CONFIG } from '../navigation/fallback-config';
 import type { MobileNavConfig } from '../types/nav';
 import { fetchWithRetry } from '../utils/fetch-retry';
-import { logger } from '../utils/logger';
-
-const log = logger.child({ module: 'nav-config' });
 
 const STORAGE_KEY = 'kodiq:nav-config';
 
@@ -22,8 +19,7 @@ function isValidNavConfig(data: unknown): data is MobileNavConfig {
     if (!tab || typeof tab !== 'object') return false;
     const t = tab as Record<string, unknown>;
     if (typeof t.id !== 'string' || typeof t.path !== 'string') return false;
-    if (typeof t.icon !== 'string' || typeof t.labelFallback !== 'string')
-      return false;
+    if (typeof t.icon !== 'string' || typeof t.labelFallback !== 'string') return false;
     // Block dangerous URL schemes
     if (String(t.path).startsWith('javascript:')) return false;
   }
@@ -71,14 +67,13 @@ export function useNavConfig(): MobileNavConfig {
           const json = JSON.stringify(raw);
           if (json !== configJsonRef.current) {
             configJsonRef.current = json;
-            log.info('Nav config loaded from API');
             setConfig(raw);
           }
           await AsyncStorage.setItem(STORAGE_KEY, json);
           return;
         }
-      } catch (err) {
-        log.warn({ err }, 'Nav config API failed, trying cache');
+      } catch {
+        // API failed — try cache
       }
 
       try {
@@ -88,14 +83,13 @@ export function useNavConfig(): MobileNavConfig {
           if (isValidNavConfig(parsed)) {
             if (cached !== configJsonRef.current) {
               configJsonRef.current = cached;
-              log.info('Nav config loaded from cache');
               setConfig(parsed);
             }
             return;
           }
         }
-      } catch (err) {
-        log.warn({ err }, 'Nav config cache read failed, using fallback');
+      } catch {
+        // Cache read failed
       }
 
       // Fallback already set as initial state
@@ -106,14 +100,14 @@ export function useNavConfig(): MobileNavConfig {
 
   // Load on mount (forced — bypass cooldown)
   useEffect(() => {
-    void loadConfig(true);
+    loadConfig(true);
   }, [loadConfig]);
 
   // Re-fetch when app comes to foreground (with cooldown)
   useEffect(() => {
-    const sub = AppState.addEventListener('change', state => {
+    const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
-        void loadConfig();
+        loadConfig();
       }
     });
     return () => sub.remove();

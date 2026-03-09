@@ -1,11 +1,11 @@
 import type { Session } from '@supabase/supabase-js';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Animated,
   BackHandler,
   Linking,
   Platform,
   Pressable,
+  Share,
   StyleSheet,
   Text,
   View,
@@ -18,20 +18,94 @@ import type {
 } from 'react-native-webview';
 
 import { useAuth } from '../auth/useAuth';
-import { ACADEMY_URL, ALLOWED_ORIGINS, COLORS } from '../config';
+import { handleMilestoneForReview } from '../services/app-rating';
+import { ACADEMY_URL, ALLOWED_ORIGINS, COLORS, SUPABASE_PROJECT_REF } from '../config';
 import { DrawerMenu } from '../components/DrawerMenu';
 import { NativeHeader } from '../components/NativeHeader';
 import { NativeTabBar } from '../components/NativeTabBar';
 import { SkeletonLoader } from '../components/SkeletonLoader';
 import { useNavConfig } from '../hooks/useNavConfig';
-import { useTabNavigation } from '../hooks/useTabNavigation';
 import type { WebToNativeMessage } from '../types/bridge';
-import {
-  buildNavigateJS,
-  buildSessionInjectionJS,
-  INJECTED_JS_NO_SESSION,
-} from '../services/webview-injection';
-import { processWebViewMessage } from '../services/webview-bridge';
+import { hapticSuccess } from '../utils/haptics';
+import { updateStreakWidget } from '../services/widget';
+
+const STORAGE_KEY = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
+const COOKIE_BASE = `sb-${SUPABASE_PROJECT_REF}-auth-token`;
+
+/**
+ * Build JS to inject session into WebView (localStorage + cookies).
+ * Runs BEFORE page content loads so Supabase client picks up the session.
+ */
+function buildSessionInjectionJS(session: Session): string {
+  const sessionJSON = JSON.stringify({
+    access_token: session.access_token,
+    refresh_token: session.refresh_token,
+    expires_in: session.expires_in,
+    expires_at: session.expires_at,
+    token_type: session.token_type,
+    user: session.user,
+  });
+
+  // Chunk the encoded session for cookies (max ~3500 chars per cookie)
+  const encoded = encodeURIComponent(sessionJSON);
+  const CHUNK_SIZE = 3500;
+  const chunks: string[] = [];
+  for (let i = 0; i < encoded.length; i += CHUNK_SIZE) {
+    chunks.push(encoded.slice(i, i + CHUNK_SIZE));
+  }
+
+  const cookieStatements = chunks
+    .map(
+      (chunk, i) =>
+        `document.cookie = '${COOKIE_BASE}.${i}=${chunk}; path=/; domain=.kodiq.ai; secure; samesite=lax; max-age=604800';`,
+    )
+    .join('\n');
+
+  return `
+    (function() {
+      try {
+        window.__KODIQ_NATIVE__ = true;
+        document.body.style.overscrollBehavior = 'none';
+
+        // 1. localStorage for client-side Supabase
+        localStorage.setItem('${STORAGE_KEY}', ${JSON.stringify(sessionJSON)});
+
+        // 2. Chunked cookies for server-side Supabase (middleware)
+        ${cookieStatements}
+
+        console.log('[Native] Session injected');
+      } catch(e) {
+        console.error('[Native] Session injection failed', e);
+      }
+      true;
+    })();
+  `;
+}
+
+/** Minimal JS when no session — just set native flag */
+const INJECTED_JS_NO_SESSION = `
+  (function() {
+    window.__KODIQ_NATIVE__ = true;
+    document.body.style.overscrollBehavior = 'none';
+    true;
+  })();
+`;
+
+/** Build JS to navigate WebView via Next.js router (SPA, no reload) */
+function buildNavigateJS(path: string): string {
+  // Use Next.js router.push for SPA navigation (no page reload)
+  return `
+    (function() {
+      try {
+        var msg = JSON.stringify({ type: 'navigate', path: ${JSON.stringify(path)} });
+        window.dispatchEvent(new MessageEvent('message', { data: msg }));
+      } catch(e) {
+        window.location.href = 'https://kodiq.ai/academy' + ${JSON.stringify(path)};
+      }
+      true;
+    })();
+  `;
+}
 
 interface UpdateBanner {
   storeUrl: string | null;
@@ -45,27 +119,20 @@ interface WebViewScreenProps {
   updateBanner?: UpdateBanner;
 }
 
-export function WebViewScreen({
-  isOffline,
-  deepLinkUrl,
-  session,
-  updateBanner,
-}: WebViewScreenProps) {
+export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }: WebViewScreenProps) {
   const webViewRef = useRef<WebView>(null);
+  const canGoBackRef = useRef(false);
   const insets = useSafeAreaInsets();
   const { signOut } = useAuth();
   const navConfig = useNavConfig();
-  const tabNav = useTabNavigation(navConfig.tabs);
 
+  // Navigation state from bridge
+  const [activePath, setActivePath] = useState('/');
+  const [pageTitle, setPageTitle] = useState('');
+  const [pageCanGoBack, setPageCanGoBack] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [contentLoaded, setContentLoaded] = useState(false);
-
-  // Opacity fade for tab transitions — masks SPA navigation delay
-  const tabTransitionOpacity = useRef(new Animated.Value(1)).current;
-
-  // Fallback timer — force reload if no page_meta within 1.5s after tab switch
-  const pageMetaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Crash recovery: max 3 reload attempts to prevent infinite loop
   const crashCountRef = useRef(0);
@@ -86,29 +153,20 @@ export function WebViewScreen({
     if (Platform.OS !== 'android') return;
 
     const handler = BackHandler.addEventListener('hardwareBackPress', () => {
+      // Close drawer first
       if (drawerVisible) {
         setDrawerVisible(false);
         return true;
       }
-
-      // Navigate back within tab's own history
-      const prevPath = tabNav.goBack();
-      if (prevPath && webViewRef.current) {
-        webViewRef.current.injectJavaScript(buildNavigateJS(prevPath));
+      if (canGoBackRef.current && webViewRef.current) {
+        webViewRef.current.goBack();
         return true;
       }
-
-      // At tab root — open drawer instead of exiting
-      if (!tabNav.canGoBack) {
-        setDrawerVisible(true);
-        return true;
-      }
-
       return false;
     });
 
     return () => handler.remove();
-  }, [drawerVisible, tabNav]);
+  }, [drawerVisible]);
 
   // Deep link navigation — validate origin before navigating
   useEffect(() => {
@@ -116,9 +174,7 @@ export function WebViewScreen({
       const fullUrl = deepLinkUrl.startsWith('http')
         ? deepLinkUrl
         : `https://kodiq.ai${deepLinkUrl}`;
-      const isAllowed = ALLOWED_ORIGINS.some(origin =>
-        fullUrl.startsWith(origin),
-      );
+      const isAllowed = ALLOWED_ORIGINS.some((origin) => fullUrl.startsWith(origin));
       if (!isAllowed) return;
       webViewRef.current.injectJavaScript(
         `window.location.href = ${JSON.stringify(fullUrl)}; true;`,
@@ -128,9 +184,14 @@ export function WebViewScreen({
 
   const handleNavigationStateChange = useCallback(
     (navState: WebViewNavigation) => {
+      canGoBackRef.current = navState.canGoBack;
+
+      // activePath is set exclusively by page_meta bridge message
+      // to avoid race conditions with URL parsing
+
       // Detect if WebView navigated to login page (session expired in web)
       if (navState.url.includes('/auth/login')) {
-        void signOut();
+        signOut();
       }
     },
     [signOut],
@@ -139,39 +200,46 @@ export function WebViewScreen({
   const handleMessage = useCallback(
     (event: WebViewMessageEvent) => {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- untyped
         const msg: WebToNativeMessage = JSON.parse(event.nativeEvent.data);
-        processWebViewMessage(
-          msg,
-          {
-            // eslint-disable-next-line @typescript-eslint/no-misused-promises -- untyped
-            onSignOut: signOut,
-            onPageMeta: (title, path) => {
-              // Clear fallback timer — we got a response from the bridge
-              if (pageMetaTimerRef.current) {
-                clearTimeout(pageMetaTimerRef.current);
-                pageMetaTimerRef.current = null;
-              }
-              tabNav.onPageChange(path, title);
-              crashCountRef.current = 0; // Reset crash counter on successful load
-
-              // Fade in WebView after page loaded
-              Animated.timing(tabTransitionOpacity, {
-                toValue: 1,
-                duration: 200,
-                useNativeDriver: true,
-              }).start();
-            },
-            onNotificationCount: setNotificationCount,
-            onContentLoaded: () => setContentLoaded(true),
-          },
-          contentLoaded,
-        );
+        switch (msg.type) {
+          case 'logout':
+            signOut();
+            break;
+          case 'auth_state':
+            if (!msg.authenticated) signOut();
+            break;
+          case 'page_meta':
+            setPageTitle(msg.title);
+            setActivePath(msg.path);
+            setPageCanGoBack(msg.canGoBack);
+            if (!contentLoaded) setContentLoaded(true);
+            crashCountRef.current = 0; // Reset crash counter on successful load
+            break;
+          case 'notification_count':
+            setNotificationCount(msg.count);
+            break;
+          case 'share':
+            Share.share({
+              title: msg.title,
+              message: [msg.text, msg.url].filter(Boolean).join('\n'),
+              ...(Platform.OS === 'ios' && msg.url ? { url: msg.url } : {}),
+            }).catch(() => {});
+            break;
+          case 'milestone':
+            hapticSuccess();
+            handleMilestoneForReview(msg.event);
+            break;
+          case 'streak_update':
+            void updateStreakWidget(msg.streak, msg.challengeDone);
+            break;
+          case 'navigation':
+            break;
+        }
       } catch {
         // Ignore non-JSON messages
       }
     },
-    [signOut, contentLoaded, tabNav, tabTransitionOpacity],
+    [signOut, contentLoaded],
   );
 
   // Crash recovery: Android kills WebView renderer in background → white screen
@@ -185,60 +253,36 @@ export function WebViewScreen({
   const handleShouldStartLoad = useCallback(
     (event: { url: string }): boolean => {
       const { url } = event;
-      return ALLOWED_ORIGINS.some(origin => url.startsWith(origin));
+      return ALLOWED_ORIGINS.some((origin) => url.startsWith(origin));
     },
     [],
   );
 
   // Tab press → navigate WebView or toggle AI Mentor
-  const handleTabPress = useCallback(
-    (path: string) => {
-      if (path === '__ai_mentor__') {
-        webViewRef.current?.injectJavaScript(`
+  const handleTabPress = useCallback((path: string) => {
+    if (path === '__ai_mentor__') {
+      // Dispatch CustomEvent that AiMentorEventBridge listens for on the web side
+      webViewRef.current?.injectJavaScript(`
         (function() {
           window.dispatchEvent(new CustomEvent('toggle-ai-mentor'));
           true;
         })();
       `);
-        return;
-      }
+      return;
+    }
+    webViewRef.current?.injectJavaScript(buildNavigateJS(path));
+  }, []);
 
-      // Find tab by path and switch via tab navigation
-      const tab = navConfig.tabs.find(t => t.path === path);
-      if (!tab) return;
-
-      const navPath = tabNav.switchTab(tab.id);
-      if (navPath && webViewRef.current) {
-        // Fade out WebView to mask SPA navigation delay
-        Animated.timing(tabTransitionOpacity, {
-          toValue: 0.4,
-          duration: 100,
-          useNativeDriver: true,
-        }).start();
-
-        webViewRef.current.injectJavaScript(buildNavigateJS(navPath));
-
-        // Fallback: force reload if no page_meta within 1.5s
-        if (pageMetaTimerRef.current) clearTimeout(pageMetaTimerRef.current);
-        pageMetaTimerRef.current = setTimeout(() => {
-          webViewRef.current?.injectJavaScript(
-            `window.location.href = 'https://kodiq.ai${navPath}'; true;`,
-          );
-          pageMetaTimerRef.current = null;
-        }, 1500);
-      }
-    },
-    [navConfig.tabs, tabNav, tabTransitionOpacity],
-  );
-
-  const handleBurgerPress = useCallback(() => setDrawerVisible(true), []);
+  // Header actions
+  const handleBurgerPress = useCallback(() => {
+    setDrawerVisible(true);
+  }, []);
 
   const handleBackPress = useCallback(() => {
-    const prevPath = tabNav.goBack();
-    if (prevPath && webViewRef.current) {
-      webViewRef.current.injectJavaScript(buildNavigateJS(prevPath));
+    if (canGoBackRef.current && webViewRef.current) {
+      webViewRef.current.goBack();
     }
-  }, [tabNav]);
+  }, []);
 
   const handleNotificationPress = useCallback(() => {
     webViewRef.current?.injectJavaScript(buildNavigateJS('/notifications'));
@@ -248,18 +292,18 @@ export function WebViewScreen({
     webViewRef.current?.injectJavaScript(buildNavigateJS('/search'));
   }, []);
 
-  const handleDrawerNavigate = useCallback(
-    (path: string, external?: boolean) => {
-      if (external) {
-        void Linking.openURL(path);
-      } else {
-        webViewRef.current?.injectJavaScript(buildNavigateJS(path));
-      }
-    },
-    [],
-  );
+  // Drawer navigation
+  const handleDrawerNavigate = useCallback((path: string, external?: boolean) => {
+    if (external) {
+      Linking.openURL(path);
+    } else {
+      webViewRef.current?.injectJavaScript(buildNavigateJS(path));
+    }
+  }, []);
 
-  const handleLogout = useCallback(() => signOut(), [signOut]);
+  const handleLogout = useCallback(() => {
+    signOut();
+  }, [signOut]);
 
   const injectedJS = buildSessionInjectionJS(session);
 
@@ -277,11 +321,12 @@ export function WebViewScreen({
         <Pressable
           style={styles.updateBanner}
           onPress={() => {
-            if (updateBanner.storeUrl)
-              void Linking.openURL(updateBanner.storeUrl);
+            if (updateBanner.storeUrl) Linking.openURL(updateBanner.storeUrl);
           }}
         >
-          <Text style={styles.updateBannerText}>Доступно обновление</Text>
+          <Text style={styles.updateBannerText}>
+            Доступно обновление
+          </Text>
           <Pressable onPress={updateBanner.onDismiss} hitSlop={8}>
             <Text style={styles.updateBannerDismiss}>{'\u2715'}</Text>
           </Pressable>
@@ -291,8 +336,8 @@ export function WebViewScreen({
       {/* Native Header */}
       <NativeHeader
         config={navConfig}
-        title={tabNav.title}
-        canGoBack={tabNav.canGoBack}
+        title={pageTitle}
+        canGoBack={pageCanGoBack}
         notificationCount={notificationCount}
         onBurgerPress={handleBurgerPress}
         onBackPress={handleBackPress}
@@ -301,9 +346,7 @@ export function WebViewScreen({
       />
 
       {/* WebView — content area */}
-      <Animated.View
-        style={[styles.webviewContainer, { opacity: tabTransitionOpacity }]}
-      >
+      <View style={styles.webviewContainer}>
         <WebView
           ref={webViewRef}
           source={{ uri: ACADEMY_URL }}
@@ -317,15 +360,19 @@ export function WebViewScreen({
           onContentProcessDidTerminate={handleRenderCrash}
           // Auth: cookies still shared for SSR compatibility
           sharedCookiesEnabled
+          // Cache
           cacheEnabled
           cacheMode={isOffline ? 'LOAD_CACHE_ELSE_NETWORK' : 'LOAD_DEFAULT'}
+          // UI
           allowsBackForwardNavigationGestures
           pullToRefreshEnabled={Platform.OS === 'android'}
           startInLoadingState
+          // Security
           javaScriptEnabled
           domStorageEnabled
           allowsInlineMediaPlayback
           mediaPlaybackRequiresUserAction={false}
+          // Scroll
           overScrollMode="never"
           scrollEnabled
         />
@@ -336,12 +383,12 @@ export function WebViewScreen({
             <SkeletonLoader />
           </View>
         )}
-      </Animated.View>
+      </View>
 
       {/* Native Tab Bar */}
       <NativeTabBar
         tabs={navConfig.tabs}
-        activePath={tabNav.getActiveState().currentPath}
+        activePath={activePath}
         notificationCount={notificationCount}
         onTabPress={handleTabPress}
       />
