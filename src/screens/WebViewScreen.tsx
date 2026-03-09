@@ -1,6 +1,7 @@
 import type { Session } from '@supabase/supabase-js';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   BackHandler,
   Linking,
   Platform,
@@ -59,6 +60,9 @@ export function WebViewScreen({
   const [notificationCount, setNotificationCount] = useState(0);
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [contentLoaded, setContentLoaded] = useState(false);
+
+  // Opacity fade for tab transitions — masks SPA navigation delay
+  const tabTransitionOpacity = useRef(new Animated.Value(1)).current;
 
   // Fallback timer — force reload if no page_meta within 1.5s after tab switch
   const pageMetaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -150,6 +154,13 @@ export function WebViewScreen({
               }
               tabNav.onPageChange(path, title);
               crashCountRef.current = 0; // Reset crash counter on successful load
+
+              // Fade in WebView after page loaded
+              Animated.timing(tabTransitionOpacity, {
+                toValue: 1,
+                duration: 200,
+                useNativeDriver: true,
+              }).start();
             },
             onNotificationCount: setNotificationCount,
             onContentLoaded: () => setContentLoaded(true),
@@ -160,7 +171,7 @@ export function WebViewScreen({
         // Ignore non-JSON messages
       }
     },
-    [signOut, contentLoaded, tabNav],
+    [signOut, contentLoaded, tabNav, tabTransitionOpacity],
   );
 
   // Crash recovery: Android kills WebView renderer in background → white screen
@@ -180,35 +191,45 @@ export function WebViewScreen({
   );
 
   // Tab press → navigate WebView or toggle AI Mentor
-  const handleTabPress = useCallback((path: string) => {
-    if (path === '__ai_mentor__') {
-      webViewRef.current?.injectJavaScript(`
+  const handleTabPress = useCallback(
+    (path: string) => {
+      if (path === '__ai_mentor__') {
+        webViewRef.current?.injectJavaScript(`
         (function() {
           window.dispatchEvent(new CustomEvent('toggle-ai-mentor'));
           true;
         })();
       `);
-      return;
-    }
+        return;
+      }
 
-    // Find tab by path and switch via tab navigation
-    const tab = navConfig.tabs.find((t) => t.path === path);
-    if (!tab) return;
+      // Find tab by path and switch via tab navigation
+      const tab = navConfig.tabs.find(t => t.path === path);
+      if (!tab) return;
 
-    const navPath = tabNav.switchTab(tab.id);
-    if (navPath && webViewRef.current) {
-      webViewRef.current.injectJavaScript(buildNavigateJS(navPath));
+      const navPath = tabNav.switchTab(tab.id);
+      if (navPath && webViewRef.current) {
+        // Fade out WebView to mask SPA navigation delay
+        Animated.timing(tabTransitionOpacity, {
+          toValue: 0.4,
+          duration: 100,
+          useNativeDriver: true,
+        }).start();
 
-      // Fallback: force reload if no page_meta within 1.5s
-      if (pageMetaTimerRef.current) clearTimeout(pageMetaTimerRef.current);
-      pageMetaTimerRef.current = setTimeout(() => {
-        webViewRef.current?.injectJavaScript(
-          `window.location.href = 'https://kodiq.ai${navPath}'; true;`,
-        );
-        pageMetaTimerRef.current = null;
-      }, 1500);
-    }
-  }, [navConfig.tabs, tabNav]);
+        webViewRef.current.injectJavaScript(buildNavigateJS(navPath));
+
+        // Fallback: force reload if no page_meta within 1.5s
+        if (pageMetaTimerRef.current) clearTimeout(pageMetaTimerRef.current);
+        pageMetaTimerRef.current = setTimeout(() => {
+          webViewRef.current?.injectJavaScript(
+            `window.location.href = 'https://kodiq.ai${navPath}'; true;`,
+          );
+          pageMetaTimerRef.current = null;
+        }, 1500);
+      }
+    },
+    [navConfig.tabs, tabNav, tabTransitionOpacity],
+  );
 
   const handleBurgerPress = useCallback(() => setDrawerVisible(true), []);
 
@@ -280,7 +301,9 @@ export function WebViewScreen({
       />
 
       {/* WebView — content area */}
-      <View style={styles.webviewContainer}>
+      <Animated.View
+        style={[styles.webviewContainer, { opacity: tabTransitionOpacity }]}
+      >
         <WebView
           ref={webViewRef}
           source={{ uri: ACADEMY_URL }}
@@ -313,7 +336,7 @@ export function WebViewScreen({
             <SkeletonLoader />
           </View>
         )}
-      </View>
+      </Animated.View>
 
       {/* Native Tab Bar */}
       <NativeTabBar
