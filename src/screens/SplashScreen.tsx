@@ -43,14 +43,10 @@ export function SplashScreen() {
   return (
     <Animated.View style={[styles.container, { opacity }]}>
       <Animated.View style={[styles.content, { transform: [{ scale }] }]}>
-        <View style={styles.logoIcon}>
-          <KodiqLogo size={80} />
+        <View style={styles.logoSquare}>
+          <KodiqLogo size={64} />
         </View>
-        <View style={styles.textRow}>
-          <Animated.Text style={styles.logo}>kodiq</Animated.Text>
-          <Animated.View style={styles.divider} />
-          <Animated.Text style={styles.subtitle}>Academy</Animated.Text>
-        </View>
+        <Animated.Text style={styles.wordmark}>Kodiq</Animated.Text>
 
         {/* Progress bar */}
         <View style={styles.progressTrack}>
@@ -59,9 +55,6 @@ export function SplashScreen() {
           />
         </View>
       </Animated.View>
-      <Animated.Text style={styles.tagline}>
-        AI Solo Founder Program
-      </Animated.Text>
     </Animated.View>
   );
 }
@@ -76,52 +69,35 @@ const styles = StyleSheet.create({
   content: {
     alignItems: 'center',
   },
-  logoIcon: {
-    marginBottom: 20,
-  },
-  textRow: {
-    flexDirection: 'row',
+  logoSquare: {
+    width: 96,
+    height: 96,
+    borderRadius: 24,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.borderStrong,
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'center',
   },
-  logo: {
+  wordmark: {
     fontFamily: FONT_MONO,
     fontSize: 32,
     fontWeight: '700',
     color: COLORS.text,
-    letterSpacing: -1,
-  },
-  divider: {
-    width: 1,
-    height: 28,
-    backgroundColor: COLORS.border,
-  },
-  subtitle: {
-    fontFamily: FONT_MONO,
-    fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.accent,
-    letterSpacing: 0.5,
+    letterSpacing: 2,
+    marginTop: 20,
   },
   progressTrack: {
     width: PROGRESS_WIDTH,
     height: 2,
     backgroundColor: COLORS.border,
     borderRadius: 1,
-    marginTop: 20,
+    marginTop: 24,
     overflow: 'hidden',
   },
   progressFill: {
     height: 2,
     backgroundColor: COLORS.accent,
     borderRadius: 1,
-  },
-  tagline: {
-    fontFamily: FONT_MONO,
-    fontSize: 11,
-    color: COLORS.textMuted,
-    letterSpacing: 1,
-    marginTop: 20,
-    textTransform: 'uppercase',
   },
 });
