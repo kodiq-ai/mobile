@@ -19,7 +19,6 @@ import {
   getDefaultChoices,
   saveConsent,
 } from './src/services/consent';
-import { BiometricLockScreen } from './src/screens/BiometricLockScreen';
 import { ConsentScreen } from './src/screens/ConsentScreen';
 import { EmailSentScreen } from './src/screens/EmailSentScreen';
 import { ForceUpdateScreen } from './src/screens/ForceUpdateScreen';
@@ -35,7 +34,6 @@ import { SplashScreen } from './src/screens/SplashScreen';
 import { WebViewScreen } from './src/screens/WebViewScreen';
 import { ToastProvider } from './src/components/Toast';
 import { WhatsNewModal } from './src/components/WhatsNewModal';
-import { useBiometric } from './src/hooks/useBiometric';
 import { useWhatsNew } from './src/hooks/useWhatsNew';
 import { onTokenRefresh, registerPushToken } from './src/services/push';
 
@@ -44,7 +42,6 @@ type AuthScreen = 'login' | 'register' | 'forgot' | 'email-sent';
 function AppContent() {
   const { session, isLoading, signOut } = useAuth();
   const posthog = usePostHog();
-  const biometric = useBiometric(!!session);
   const whatsNew = useWhatsNew();
   const {
     status: updateStatus,
@@ -168,17 +165,6 @@ function AppContent() {
     })();
 
     return <AnimatedScreen screenKey={authScreen}>{screen}</AnimatedScreen>;
-  }
-
-  // Biometric lock gate
-  if (biometric.state === 'locked' || biometric.state === 'prompting') {
-    return (
-      <BiometricLockScreen
-        onUnlock={biometric.unlock}
-        onSignOut={signOut}
-        biometryType={biometric.biometryType}
-      />
-    );
   }
 
   // Authenticated → WebView with session injection

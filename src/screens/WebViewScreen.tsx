@@ -63,6 +63,10 @@ export function WebViewScreen({
   // Fallback timer — force reload if no page_meta within 1.5s after tab switch
   const pageMetaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Crash recovery: max 3 reload attempts to prevent infinite loop
+  const crashCountRef = useRef(0);
+  const MAX_CRASH_RELOADS = 3;
+
   // Re-inject session when token refreshes
   const prevTokenRef = useRef(session.access_token);
   useEffect(() => {
@@ -145,6 +149,7 @@ export function WebViewScreen({
                 pageMetaTimerRef.current = null;
               }
               tabNav.onPageChange(path, title);
+              crashCountRef.current = 0; // Reset crash counter on successful load
             },
             onNotificationCount: setNotificationCount,
             onContentLoaded: () => setContentLoaded(true),
@@ -157,6 +162,14 @@ export function WebViewScreen({
     },
     [signOut, contentLoaded, tabNav],
   );
+
+  // Crash recovery: Android kills WebView renderer in background → white screen
+  const handleRenderCrash = useCallback(() => {
+    if (crashCountRef.current >= MAX_CRASH_RELOADS) return;
+    crashCountRef.current += 1;
+    setContentLoaded(false);
+    webViewRef.current?.reload();
+  }, []);
 
   const handleShouldStartLoad = useCallback(
     (event: { url: string }): boolean => {
@@ -277,6 +290,9 @@ export function WebViewScreen({
           onNavigationStateChange={handleNavigationStateChange}
           onMessage={handleMessage}
           onShouldStartLoadWithRequest={handleShouldStartLoad}
+          onRenderProcessGone={handleRenderCrash}
+          onContentProcessDidTerminate={handleRenderCrash}
+          // Auth: cookies still shared for SSR compatibility
           sharedCookiesEnabled
           cacheEnabled
           cacheMode={isOffline ? 'LOAD_CACHE_ELSE_NETWORK' : 'LOAD_DEFAULT'}
