@@ -91,10 +91,11 @@ export function NativeHeader({
             </Pressable>
           )}
 
-          {/* Logo */}
+          {/* Logo + wordmark */}
           {config.header.showLogo && !canGoBack && (
             <View style={styles.logo}>
-              <KodiqLogo size={24} />
+              <KodiqLogo size={30} />
+              <Text style={styles.wordmark}>Kodiq</Text>
             </View>
           )}
 
@@ -178,7 +179,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   logo: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginLeft: -4,
+    gap: 6,
+  },
+  wordmark: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+    letterSpacing: 1,
   },
   title: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
