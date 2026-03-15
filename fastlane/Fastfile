@@ -359,9 +359,9 @@ platform :android do
       skip_upload_metadata: false,
       skip_upload_images: false,
       skip_upload_screenshots: false,
-      release_status: "draft",
-      track: "internal",
       sync_image_upload: true,
+      track: "internal",
+      version_code: 1,
     )
   end
 
