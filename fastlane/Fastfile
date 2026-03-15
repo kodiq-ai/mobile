@@ -227,7 +227,7 @@ platform :ios do
     UI.user_error!("No valid builds found") if builds.empty?
 
     build = builds.first
-    UI.success("Submitting build #{build.version} (#{build.build_number})")
+    UI.success("Submitting build #{build.version}")
 
     # Select the build for this version
     version.select_build(build_id: build.id)
@@ -354,7 +354,7 @@ platform :android do
       skip_upload_changelogs: true,
       track: "internal",
       track_promote_to: "production",
-      release_status: "draft",
+      track_promote_release_status: "draft",
     )
   end
 end
