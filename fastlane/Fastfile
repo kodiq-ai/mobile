@@ -206,18 +206,36 @@ platform :ios do
   lane :submit_review do
     api_key
 
-    deliver(
-      skip_binary_upload: true,
-      skip_screenshots: true,
-      skip_metadata: true,
-      submit_for_review: true,
-      automatic_release: true,
-      force: true,
-      precheck_include_in_app_purchases: false,
-      submission_information: {
-        add_id_info_uses_idfa: false,
-      },
+    # Use Spaceship API directly to avoid deliver's
+    # availableInNewTerritories bug (fastlane #21820)
+    require "spaceship"
+    token = Spaceship::ConnectAPI::Token.from(hash: lane_context[SharedValues::APP_STORE_CONNECT_API_KEY])
+    Spaceship::ConnectAPI.token = token
+
+    app = Spaceship::ConnectAPI::App.find("ai.kodiq")
+    UI.user_error!("App ai.kodiq not found") unless app
+
+    version = app.get_edit_app_store_version
+    UI.user_error!("No editable App Store version found") unless version
+
+    # Find the latest build
+    builds = Spaceship::ConnectAPI::Build.all(
+      filter: { app: app.id, processingState: "VALID" },
+      sort: "-uploadedDate",
+      limit: 1,
     )
+    UI.user_error!("No valid builds found") if builds.empty?
+
+    build = builds.first
+    UI.success("Submitting build #{build.version} (#{build.build_number})")
+
+    # Select the build for this version
+    version.select_build(build_id: build.id)
+
+    # Submit for review
+    version.create_app_store_version_submission
+
+    UI.success("App submitted for App Store review!")
   end
 
   # --- Release ---
@@ -333,6 +351,7 @@ platform :android do
       skip_upload_metadata: true,
       skip_upload_images: true,
       skip_upload_screenshots: true,
+      skip_upload_changelogs: true,
       track: "internal",
       track_promote_to: "production",
     )
