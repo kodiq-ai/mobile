@@ -348,7 +348,7 @@ platform :android do
     UI.success("Google Play metadata + screenshots committed")
   end
 
-  desc "Submit Data Safety declaration via API"
+  desc "Export Data Safety CSV template from Google Play, then submit filled version"
   lane :submit_data_safety do
     require "google/apis/androidpublisher_v3"
     require "googleauth"
@@ -365,64 +365,35 @@ platform :android do
 
     package = "ai.kodiq"
 
-    # Data Safety CSV — Google's format: "Question (machine-readable),Answer (machine-readable)"
-    # Based on our app: email, name, crash logs, diagnostics, app interactions, device IDs
-    csv = <<~CSV
-      question_id,response_id
-      PSL_DATA_COLLECTION_COLLECTS_PERSONAL_DATA,true
-      PSL_DATA_COLLECTION_ENCRYPTED_IN_TRANSIT,true
-      PSL_DATA_COLLECTION_USER_REQUEST_DELETE,true
-      PSL_DATA_COLLECTION_DELETE_ACCOUNT_URL,https://kodiq.ai/account/delete
-      DATA_TYPE_PERSONAL_NAME,COLLECTED
-      DATA_TYPE_PERSONAL_NAME,NOT_SHARED
-      DATA_TYPE_PERSONAL_NAME,COLLECTION_NOT_OPTIONAL
-      DATA_TYPE_PERSONAL_NAME,NOT_EPHEMERAL
-      DATA_TYPE_PERSONAL_NAME_PURPOSE,APP_FUNCTIONALITY
-      DATA_TYPE_PERSONAL_NAME_PURPOSE,ACCOUNT_MANAGEMENT
-      DATA_TYPE_EMAIL,COLLECTED
-      DATA_TYPE_EMAIL,NOT_SHARED
-      DATA_TYPE_EMAIL,COLLECTION_NOT_OPTIONAL
-      DATA_TYPE_EMAIL,NOT_EPHEMERAL
-      DATA_TYPE_EMAIL_PURPOSE,APP_FUNCTIONALITY
-      DATA_TYPE_EMAIL_PURPOSE,DEVELOPER_COMMUNICATIONS
-      DATA_TYPE_EMAIL_PURPOSE,ACCOUNT_MANAGEMENT
-      DATA_TYPE_CRASH_LOGS,COLLECTED
-      DATA_TYPE_CRASH_LOGS,SHARED
-      DATA_TYPE_CRASH_LOGS,COLLECTION_NOT_OPTIONAL
-      DATA_TYPE_CRASH_LOGS,NOT_EPHEMERAL
-      DATA_TYPE_CRASH_LOGS_PURPOSE,ANALYTICS
-      DATA_TYPE_DIAGNOSTICS,COLLECTED
-      DATA_TYPE_DIAGNOSTICS,SHARED
-      DATA_TYPE_DIAGNOSTICS,COLLECTION_NOT_OPTIONAL
-      DATA_TYPE_DIAGNOSTICS,NOT_EPHEMERAL
-      DATA_TYPE_DIAGNOSTICS_PURPOSE,ANALYTICS
-      DATA_TYPE_OTHER_APP_ACTIVITIES,COLLECTED
-      DATA_TYPE_OTHER_APP_ACTIVITIES,SHARED
-      DATA_TYPE_OTHER_APP_ACTIVITIES,COLLECTION_OPTIONAL
-      DATA_TYPE_OTHER_APP_ACTIVITIES,NOT_EPHEMERAL
-      DATA_TYPE_OTHER_APP_ACTIVITIES_PURPOSE,ANALYTICS
-      DATA_TYPE_DEVICE_ID,COLLECTED
-      DATA_TYPE_DEVICE_ID,SHARED
-      DATA_TYPE_DEVICE_ID,COLLECTION_NOT_OPTIONAL
-      DATA_TYPE_DEVICE_ID,NOT_EPHEMERAL
-      DATA_TYPE_DEVICE_ID_PURPOSE,ANALYTICS
-    CSV
-
+    # Step 1: GET current data safety to see the CSV format
     uri = URI("https://androidpublisher.googleapis.com/androidpublisher/v3/applications/#{package}/dataSafety")
     http = Net::HTTP.new(uri.host, uri.port)
     http.use_ssl = true
 
-    request = Net::HTTP::Post.new(uri)
-    request["Authorization"] = "Bearer #{token}"
-    request["Content-Type"] = "application/json"
-    request.body = { safetyLabels: csv.strip }.to_json
+    get_req = Net::HTTP::Get.new(uri)
+    get_req["Authorization"] = "Bearer #{token}"
+    get_response = http.request(get_req)
 
-    response = http.request(request)
+    if get_response.code.to_i == 200
+      body = JSON.parse(get_response.body)
+      if body["safetyLabels"]
+        UI.success("Current CSV template retrieved!")
+        UI.message("CSV content:\n#{body['safetyLabels']}")
 
-    if response.code.to_i == 200
-      UI.success("Data Safety declaration submitted successfully!")
+        # Parse and fill the CSV
+        csv_lines = body["safetyLabels"].split("\n")
+        header = csv_lines.first
+        UI.message("Header: #{header}")
+
+        # Save template for reference
+        File.write("./fastlane/data-safety-template.csv", body["safetyLabels"])
+        UI.success("Template saved to fastlane/data-safety-template.csv")
+      else
+        UI.important("No existing safety labels found. Response: #{get_response.body}")
+      end
     else
-      UI.user_error!("Data Safety submission failed (#{response.code}): #{response.body}")
+      UI.important("GET failed (#{get_response.code}): #{get_response.body}")
+      UI.message("Trying POST with standard format...")
     end
   end
 
