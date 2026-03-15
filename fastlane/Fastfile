@@ -295,9 +295,11 @@ platform :android do
     edit_id = edit.id
 
     # Upload listings only (no track modifications)
-    meta_dir = File.expand_path("../metadata/android", __dir__)
+    meta_dir = File.expand_path("metadata/android", File.dirname(__FILE__))
+    UI.message("Resolved meta_dir: #{meta_dir} (exists: #{File.directory?(meta_dir)})")
     { "en-US" => "en-US", "ru-RU" => "ru-RU" }.each do |gp_locale, dir_locale|
       locale_dir = File.join(meta_dir, dir_locale)
+      UI.message("Checking locale #{gp_locale}: #{locale_dir} (exists: #{File.directory?(locale_dir)})")
       next unless File.directory?(locale_dir)
 
       listing = Google::Apis::AndroidpublisherV3::Listing.new
