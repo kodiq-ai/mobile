@@ -308,8 +308,14 @@ platform :android do
         listing.send("#{field}=", File.read(file).strip) if File.exist?(file)
       end
 
-      publisher.update_listing(package, edit_id, gp_locale, listing)
-      UI.success("Updated listing for #{gp_locale}")
+      begin
+        publisher.update_listing(package, edit_id, gp_locale, listing)
+        UI.success("Updated listing for #{gp_locale}")
+      rescue => e
+        UI.error("Failed to update listing for #{gp_locale}: #{e.message}")
+        UI.error("Listing data: title=#{listing.title}, short=#{listing.short_description&.length}, full=#{listing.full_description&.length}")
+        raise e
+      end
 
       # Upload all image types: icon, featureGraphic, phoneScreenshots
       images_dir = File.join(locale_dir, "images")
