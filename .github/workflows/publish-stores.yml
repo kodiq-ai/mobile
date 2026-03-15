@@ -9,6 +9,7 @@ on:
         type: choice
         options:
           - metadata-only
+          - store-listing
           - data-safety
           - submit-ios-review
           - promote-android-production
@@ -70,6 +71,23 @@ jobs:
         env:
           GOOGLE_PLAY_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}
         run: bundle exec fastlane android upload_metadata
+
+  android-store-listing:
+    if: contains(fromJSON('["store-listing", "all"]'), github.event.inputs.target)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Upload store listing via supply
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}
+        run: bundle exec fastlane android upload_store_listing
 
   android-data-safety:
     if: contains(fromJSON('["data-safety", "all"]'), github.event.inputs.target)

@@ -348,6 +348,23 @@ platform :android do
     UI.success("Google Play metadata + screenshots committed")
   end
 
+  desc "Upload store listing via supply (standard Fastlane)"
+  lane :upload_store_listing do
+    supply(
+      json_key_data: ENV["GOOGLE_PLAY_SERVICE_ACCOUNT"],
+      package_name: "ai.kodiq",
+      skip_upload_apk: true,
+      skip_upload_aab: true,
+      skip_upload_changelogs: true,
+      skip_upload_metadata: false,
+      skip_upload_images: false,
+      skip_upload_screenshots: false,
+      release_status: "draft",
+      track: "internal",
+      sync_image_upload: true,
+    )
+  end
+
   desc "Export Data Safety CSV template from Google Play, then submit filled version"
   lane :submit_data_safety do
     require "google/apis/androidpublisher_v3"
