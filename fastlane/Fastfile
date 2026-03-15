@@ -218,9 +218,9 @@ platform :ios do
     version = app.get_edit_app_store_version
     UI.user_error!("No editable App Store version found") unless version
 
-    # Find the latest build
-    builds = Spaceship::ConnectAPI::Build.all(
-      filter: { app: app.id, processingState: "VALID" },
+    # Find the latest processed build for this app
+    builds = app.get_builds(
+      filter: { processingState: "VALID" },
       sort: "-uploadedDate",
       limit: 1,
     )
@@ -354,6 +354,7 @@ platform :android do
       skip_upload_changelogs: true,
       track: "internal",
       track_promote_to: "production",
+      release_status: "draft",
     )
   end
 end
