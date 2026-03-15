@@ -309,20 +309,44 @@ platform :android do
       publisher.update_listing(package, edit_id, gp_locale, listing)
       UI.success("Updated listing for #{gp_locale}")
 
-      # Upload screenshots (phoneScreenshots)
-      screenshots_dir = File.join(locale_dir, "images", "phoneScreenshots")
-      next unless File.directory?(screenshots_dir)
+      # Upload all image types: icon, featureGraphic, phoneScreenshots
+      images_dir = File.join(locale_dir, "images")
+      next unless File.directory?(images_dir)
 
-      begin
-        publisher.delete_all_images(package, edit_id, gp_locale, "phoneScreenshots")
-      rescue Google::Apis::ClientError
-        # No existing images to delete
+      # Icon (512x512)
+      icon_file = File.join(images_dir, "icon.png")
+      if File.exist?(icon_file)
+        begin
+          publisher.delete_all_images(package, edit_id, gp_locale, "icon")
+        rescue Google::Apis::ClientError; end
+        publisher.upload_image(package, edit_id, gp_locale, "icon",
+          upload_source: icon_file, content_type: "image/png")
+        UI.success("Uploaded icon")
       end
 
-      Dir.glob(File.join(screenshots_dir, "*.{png,jpg,jpeg}")).sort.each do |file|
-        publisher.upload_image(package, edit_id, gp_locale, "phoneScreenshots",
-          upload_source: file, content_type: "image/png")
-        UI.success("Uploaded screenshot: #{File.basename(file)}")
+      # Feature graphic (1024x500)
+      fg_file = File.join(images_dir, "featureGraphic.png")
+      if File.exist?(fg_file)
+        begin
+          publisher.delete_all_images(package, edit_id, gp_locale, "featureGraphic")
+        rescue Google::Apis::ClientError; end
+        publisher.upload_image(package, edit_id, gp_locale, "featureGraphic",
+          upload_source: fg_file, content_type: "image/png")
+        UI.success("Uploaded feature graphic")
+      end
+
+      # Phone screenshots
+      screenshots_dir = File.join(images_dir, "phoneScreenshots")
+      if File.directory?(screenshots_dir)
+        begin
+          publisher.delete_all_images(package, edit_id, gp_locale, "phoneScreenshots")
+        rescue Google::Apis::ClientError; end
+
+        Dir.glob(File.join(screenshots_dir, "*.{png,jpg,jpeg}")).sort.each do |file|
+          publisher.upload_image(package, edit_id, gp_locale, "phoneScreenshots",
+            upload_source: file, content_type: "image/png")
+          UI.success("Uploaded screenshot: #{File.basename(file)}")
+        end
       end
     end
 
