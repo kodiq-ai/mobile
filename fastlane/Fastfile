@@ -232,10 +232,17 @@ platform :ios do
     # Select the build for this version
     version.select_build(build_id: build.id)
 
-    # Submit for review
-    version.create_app_store_version_submission
-
-    UI.success("App submitted for App Store review!")
+    # Submit for review (idempotent: skip if already submitted)
+    begin
+      version.create_app_store_version_submission
+      UI.success("App submitted for App Store review!")
+    rescue => e
+      if e.message.include?("does not allow 'CREATE'")
+        UI.important("App is already submitted for review — skipping")
+      else
+        raise e
+      end
+    end
   end
 
   # --- Release ---
@@ -343,18 +350,28 @@ platform :android do
 
   desc "Promote internal build to production"
   lane :promote_to_production do
-    supply(
-      json_key_data: ENV["GOOGLE_PLAY_SERVICE_ACCOUNT"],
-      package_name: "ai.kodiq",
-      skip_upload_apk: true,
-      skip_upload_aab: true,
-      skip_upload_metadata: true,
-      skip_upload_images: true,
-      skip_upload_screenshots: true,
-      skip_upload_changelogs: true,
-      track: "internal",
-      track_promote_to: "production",
-      track_promote_release_status: "draft",
-    )
+    begin
+      supply(
+        json_key_data: ENV["GOOGLE_PLAY_SERVICE_ACCOUNT"],
+        package_name: "ai.kodiq",
+        skip_upload_apk: true,
+        skip_upload_aab: true,
+        skip_upload_metadata: true,
+        skip_upload_images: true,
+        skip_upload_screenshots: true,
+        skip_upload_changelogs: true,
+        track: "internal",
+        track_promote_to: "production",
+        track_promote_release_status: "draft",
+      )
+    rescue => e
+      if e.message.include?("draft app")
+        UI.important("App is still in draft state on Google Play.")
+        UI.important("First production release must be done manually via Play Console.")
+        UI.important("After that, API promotions will work.")
+      else
+        raise e
+      end
+    end
   end
 end
