@@ -296,6 +296,8 @@ platform :android do
 
     # Upload listings only (no track modifications)
     meta_dir = "./fastlane/metadata/android"
+    UI.message("Meta dir: #{File.expand_path(meta_dir)}, exists: #{File.directory?(meta_dir)}")
+    Dir.glob("#{meta_dir}/**/").each { |d| UI.message("  dir: #{d}") }
     { "en-US" => "en-US", "ru-RU" => "ru-RU" }.each do |gp_locale, dir_locale|
       locale_dir = File.join(meta_dir, dir_locale)
       next unless File.directory?(locale_dir)
