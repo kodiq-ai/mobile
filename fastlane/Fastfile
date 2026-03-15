@@ -348,22 +348,10 @@ platform :android do
     UI.success("Google Play metadata + screenshots committed")
   end
 
-  desc "Upload store listing via supply (metadata only, no track changes)"
+  desc "Upload store listing (metadata + images, no track changes)"
   lane :upload_store_listing do
-    supply(
-      json_key_data: ENV["GOOGLE_PLAY_SERVICE_ACCOUNT"],
-      package_name: "ai.kodiq",
-      skip_upload_apk: true,
-      skip_upload_aab: true,
-      skip_upload_changelogs: true,
-      skip_upload_metadata: false,
-      skip_upload_images: false,
-      skip_upload_screenshots: false,
-      sync_image_upload: true,
-      track: "internal",
-      release_status: "draft",
-      version_code: 1,
-    )
+    # Use upload_metadata lane which handles draft apps correctly
+    upload_metadata
   end
 
   desc "Export Data Safety CSV template from Google Play, then submit filled version"
