@@ -9,6 +9,7 @@ on:
         type: choice
         options:
           - metadata-only
+          - data-safety
           - submit-ios-review
           - promote-android-production
           - all
@@ -69,6 +70,23 @@ jobs:
         env:
           GOOGLE_PLAY_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}
         run: bundle exec fastlane android upload_metadata
+
+  android-data-safety:
+    if: contains(fromJSON('["data-safety", "all"]'), github.event.inputs.target)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Submit Data Safety declaration
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT }}
+        run: bundle exec fastlane android submit_data_safety
 
   android-promote:
     if: contains(fromJSON('["promote-android-production", "all"]'), github.event.inputs.target)

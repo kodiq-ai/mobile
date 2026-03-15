@@ -348,6 +348,84 @@ platform :android do
     UI.success("Google Play metadata + screenshots committed")
   end
 
+  desc "Submit Data Safety declaration via API"
+  lane :submit_data_safety do
+    require "google/apis/androidpublisher_v3"
+    require "googleauth"
+    require "net/http"
+    require "json"
+
+    json_key = JSON.parse(ENV["GOOGLE_PLAY_SERVICE_ACCOUNT"])
+    credentials = Google::Auth::ServiceAccountCredentials.make_creds(
+      json_key_io: StringIO.new(json_key.to_json),
+      scope: "https://www.googleapis.com/auth/androidpublisher",
+    )
+    credentials.fetch_access_token!
+    token = credentials.access_token
+
+    package = "ai.kodiq"
+
+    # Data Safety CSV — Google's format: "Question (machine-readable),Answer (machine-readable)"
+    # Based on our app: email, name, crash logs, diagnostics, app interactions, device IDs
+    csv = <<~CSV
+      question_id,response_id
+      PSL_DATA_COLLECTION_COLLECTS_PERSONAL_DATA,true
+      PSL_DATA_COLLECTION_ENCRYPTED_IN_TRANSIT,true
+      PSL_DATA_COLLECTION_USER_REQUEST_DELETE,true
+      PSL_DATA_COLLECTION_DELETE_ACCOUNT_URL,https://kodiq.ai/account/delete
+      DATA_TYPE_PERSONAL_NAME,COLLECTED
+      DATA_TYPE_PERSONAL_NAME,NOT_SHARED
+      DATA_TYPE_PERSONAL_NAME,COLLECTION_NOT_OPTIONAL
+      DATA_TYPE_PERSONAL_NAME,NOT_EPHEMERAL
+      DATA_TYPE_PERSONAL_NAME_PURPOSE,APP_FUNCTIONALITY
+      DATA_TYPE_PERSONAL_NAME_PURPOSE,ACCOUNT_MANAGEMENT
+      DATA_TYPE_EMAIL,COLLECTED
+      DATA_TYPE_EMAIL,NOT_SHARED
+      DATA_TYPE_EMAIL,COLLECTION_NOT_OPTIONAL
+      DATA_TYPE_EMAIL,NOT_EPHEMERAL
+      DATA_TYPE_EMAIL_PURPOSE,APP_FUNCTIONALITY
+      DATA_TYPE_EMAIL_PURPOSE,DEVELOPER_COMMUNICATIONS
+      DATA_TYPE_EMAIL_PURPOSE,ACCOUNT_MANAGEMENT
+      DATA_TYPE_CRASH_LOGS,COLLECTED
+      DATA_TYPE_CRASH_LOGS,SHARED
+      DATA_TYPE_CRASH_LOGS,COLLECTION_NOT_OPTIONAL
+      DATA_TYPE_CRASH_LOGS,NOT_EPHEMERAL
+      DATA_TYPE_CRASH_LOGS_PURPOSE,ANALYTICS
+      DATA_TYPE_DIAGNOSTICS,COLLECTED
+      DATA_TYPE_DIAGNOSTICS,SHARED
+      DATA_TYPE_DIAGNOSTICS,COLLECTION_NOT_OPTIONAL
+      DATA_TYPE_DIAGNOSTICS,NOT_EPHEMERAL
+      DATA_TYPE_DIAGNOSTICS_PURPOSE,ANALYTICS
+      DATA_TYPE_OTHER_APP_ACTIVITIES,COLLECTED
+      DATA_TYPE_OTHER_APP_ACTIVITIES,SHARED
+      DATA_TYPE_OTHER_APP_ACTIVITIES,COLLECTION_OPTIONAL
+      DATA_TYPE_OTHER_APP_ACTIVITIES,NOT_EPHEMERAL
+      DATA_TYPE_OTHER_APP_ACTIVITIES_PURPOSE,ANALYTICS
+      DATA_TYPE_DEVICE_ID,COLLECTED
+      DATA_TYPE_DEVICE_ID,SHARED
+      DATA_TYPE_DEVICE_ID,COLLECTION_NOT_OPTIONAL
+      DATA_TYPE_DEVICE_ID,NOT_EPHEMERAL
+      DATA_TYPE_DEVICE_ID_PURPOSE,ANALYTICS
+    CSV
+
+    uri = URI("https://androidpublisher.googleapis.com/androidpublisher/v3/applications/#{package}/dataSafety")
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+
+    request = Net::HTTP::Post.new(uri)
+    request["Authorization"] = "Bearer #{token}"
+    request["Content-Type"] = "application/json"
+    request.body = { safetyLabels: csv.strip }.to_json
+
+    response = http.request(request)
+
+    if response.code.to_i == 200
+      UI.success("Data Safety declaration submitted successfully!")
+    else
+      UI.user_error!("Data Safety submission failed (#{response.code}): #{response.body}")
+    end
+  end
+
   desc "Promote internal build to production"
   lane :promote_to_production do
     begin
