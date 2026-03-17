@@ -11,6 +11,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Keychain from 'react-native-keychain';
 
+import { logger } from '../utils/logger';
+
+const log = logger.child({ module: 'secure-storage' });
+
 const SERVICE_NAME = 'ai.kodiq.auth';
 
 /**
@@ -20,10 +24,15 @@ const SERVICE_NAME = 'ai.kodiq.auth';
 export const secureStorage = {
   async getItem(key: string): Promise<string | null> {
     try {
-      const credentials = await Keychain.getGenericPassword({ service: keyToService(key) });
+      const credentials = await Keychain.getGenericPassword({
+        service: keyToService(key),
+      });
       if (credentials) return credentials.password;
-    } catch {
-      // Keychain unavailable — try AsyncStorage fallback
+    } catch (err) {
+      log.debug(
+        { err, key },
+        'Keychain read failed, falling back to AsyncStorage',
+      );
     }
 
     // Fallback: check AsyncStorage (handles migration case)
@@ -38,8 +47,11 @@ export const secureStorage = {
       });
       // Remove from AsyncStorage if it was there (migration cleanup)
       await AsyncStorage.removeItem(key).catch(() => {});
-    } catch {
-      // Keychain unavailable — fall back to AsyncStorage
+    } catch (err) {
+      log.warn(
+        { err, key },
+        'Keychain write failed, falling back to AsyncStorage',
+      );
       await AsyncStorage.setItem(key, value);
     }
   },
@@ -47,8 +59,8 @@ export const secureStorage = {
   async removeItem(key: string): Promise<void> {
     try {
       await Keychain.resetGenericPassword({ service: keyToService(key) });
-    } catch {
-      // Ignore Keychain errors
+    } catch (err) {
+      log.debug({ err, key }, 'Keychain reset failed');
     }
     // Always clean AsyncStorage too (migration remnants)
     await AsyncStorage.removeItem(key).catch(() => {});

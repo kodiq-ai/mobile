@@ -8,7 +8,10 @@ import React, {
 } from 'react';
 
 import { unregisterPushToken } from '../services/push';
+import { logger } from '../utils/logger';
 import { supabase } from './supabase';
+
+const log = logger.child({ module: 'auth' });
 
 interface AuthContextValue {
   session: Session | null;
@@ -29,7 +32,7 @@ interface AuthContextValue {
     idToken: string,
     nonce?: string,
   ) => Promise<{ error?: string }>;
-  signInWithOAuth: (provider: 'github') => Promise<{
+  signInWithOAuth: (provider: 'github' | 'google' | 'apple') => Promise<{
     error?: string;
     url?: string;
   }>;
@@ -43,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Restore persisted session
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
+    void supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s);
       setIsLoading(false);
     });
@@ -51,7 +54,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth state changes (login, logout, token refresh)
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, s) => {
+    } = supabase.auth.onAuthStateChange((event, s) => {
+      log.info({ event, userId: s?.user?.id }, 'Auth state changed');
       setSession(s);
     });
 
@@ -60,11 +64,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithEmail = useCallback(
     async (email: string, password: string) => {
+      log.info({ email }, 'Email sign-in attempt');
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      if (error) return { error: error.message };
+      if (error) {
+        log.warn({ email, err: error.message }, 'Email sign-in failed');
+        return { error: error.message };
+      }
       return {};
     },
     [],
@@ -86,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const handleSignOut = useCallback(async () => {
+    log.info('Sign-out initiated');
     // Unregister push token before clearing session (needs auth)
     const currentSession = await supabase.auth.getSession();
     const token = currentSession.data.session?.access_token;
@@ -93,22 +102,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     await supabase.auth.signOut();
     setSession(null);
+    log.info('Sign-out complete');
   }, []);
 
   const resetPassword = useCallback(async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://kodiq.ai/auth/callback?next=/auth/reset-password/update',
+      redirectTo:
+        'https://kodiq.ai/auth/callback?next=/auth/reset-password/update',
     });
     if (error) return { error: error.message };
     return {};
   }, []);
 
   const signInWithIdToken = useCallback(
-    async (
-      provider: 'google' | 'apple',
-      idToken: string,
-      nonce?: string,
-    ) => {
+    async (provider: 'google' | 'apple', idToken: string, nonce?: string) => {
       const { error } = await supabase.auth.signInWithIdToken({
         provider,
         token: idToken,
@@ -120,17 +127,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  const signInWithOAuth = useCallback(async (provider: 'github') => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: 'kodiq://auth/callback',
-        skipBrowserRedirect: true,
-      },
-    });
-    if (error) return { error: error.message };
-    return { url: data.url };
-  }, []);
+  const signInWithOAuth = useCallback(
+    async (provider: 'github' | 'google' | 'apple') => {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: 'kodiq://auth/callback',
+          skipBrowserRedirect: true,
+        },
+      });
+      if (error) return { error: error.message };
+      return { url: data.url };
+    },
+    [],
+  );
 
   const value = useMemo(
     () => ({

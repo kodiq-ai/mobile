@@ -8,12 +8,17 @@ const LAST_SEEN_VERSION_KEY = 'last_seen_version';
 function getAppVersion(): string {
   try {
     // React Native exposes version via PlatformConstants
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- untyped
     const constants =
       Platform.OS === 'android'
-        ? (Platform as any).constants
-        : (Platform as any).constants;
+        ? // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- untyped
+          (Platform as any).constants
+        : // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- untyped
+          (Platform as any).constants;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- untyped
     return constants?.reactNativeVersion
-      ? `${constants.reactNativeVersion.major}.${constants.reactNativeVersion.minor}.${constants.reactNativeVersion.patch}`
+      ? // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access -- untyped
+        `${constants.reactNativeVersion.major}.${constants.reactNativeVersion.minor}.${constants.reactNativeVersion.patch}`
       : '1.0.0';
   } catch {
     return '1.0.0';
@@ -56,12 +61,12 @@ export function useWhatsNew(): UseWhatsNewResult {
   const [entries, setEntries] = useState<WhatsNewEntry[]>([]);
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
         const lastSeen = await AsyncStorage.getItem(LAST_SEEN_VERSION_KEY);
         // Find entries newer than last seen version
         const newEntries = lastSeen
-          ? CHANGELOG.filter((e) => compareVersions(e.version, lastSeen) > 0)
+          ? CHANGELOG.filter(e => compareVersions(e.version, lastSeen) > 0)
           : [];
 
         if (newEntries.length > 0) {

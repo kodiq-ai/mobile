@@ -138,35 +138,111 @@ platform :ios do
   lane :upload_metadata do
     api_key
 
-    deliver(
-      skip_binary_upload: true,
-      skip_screenshots: false,
-      skip_metadata: false,
-      overwrite_screenshots: true,
-      force: true,
-      precheck_include_in_app_purchases: false,
-      submission_information: {
-        add_id_info_uses_idfa: false,
-      },
-    )
+    version = ENV["APP_VERSION"] || get_version_number(xcodeproj: "./ios/KodiqAcademy.xcodeproj")
+
+    # Upload screenshots + metadata using Spaceship API directly
+    # to avoid deliver's availableInNewTerritories bug (fastlane #21820)
+    require "spaceship"
+    token = Spaceship::ConnectAPI::Token.from(hash: lane_context[SharedValues::APP_STORE_CONNECT_API_KEY])
+    Spaceship::ConnectAPI.token = token
+
+    app = Spaceship::ConnectAPI::App.find("ai.kodiq")
+    UI.user_error!("App ai.kodiq not found") unless app
+
+    # Find or create the app store version
+    edit_version = app.get_edit_app_store_version
+    unless edit_version
+      edit_version = app.create_version!(platform: Spaceship::ConnectAPI::Platform::IOS, version_string: version)
+      UI.success("Created app store version #{version}")
+    end
+
+    # Upload localized metadata
+    %w[en-US ru].each do |locale|
+      localization = edit_version.get_app_store_version_localizations.find { |l| l.locale == locale }
+      next unless localization
+
+      meta_dir = "./fastlane/metadata/#{locale}"
+      attrs = {}
+      { "description.txt" => :description,
+        "keywords.txt" => :keywords,
+        "marketing_url.txt" => :marketing_url,
+        "name.txt" => :name,
+        "privacy_url.txt" => :privacy_policy_url,
+        "promotional_text.txt" => :promotional_text,
+        "subtitle.txt" => :subtitle,
+        "support_url.txt" => :support_url,
+      }.each do |file, key|
+        path = File.join(meta_dir, file)
+        attrs[key] = File.read(path).strip if File.exist?(path)
+      end
+
+      localization.update(attributes: attrs) unless attrs.empty?
+      UI.success("Updated metadata for #{locale}")
+
+      # Upload screenshots
+      screenshot_dir = "./fastlane/screenshots/#{locale}"
+      next unless File.directory?(screenshot_dir)
+
+      # Delete existing screenshots
+      existing = localization.get_app_screenshot_sets
+      existing.each do |set|
+        set.app_screenshots.each(&:delete!)
+      end
+
+      Dir.glob(File.join(screenshot_dir, "*.{png,jpg,jpeg}")).sort.each do |file|
+        # Determine display type from filename or default to 6.7"
+        display_type = Spaceship::ConnectAPI::AppScreenshotSet::DisplayType::APP_IPHONE_67
+        set = localization.get_app_screenshot_sets.find { |s| s.screenshot_display_type == display_type }
+        set ||= localization.create_app_screenshot_set(attributes: { screenshotDisplayType: display_type })
+        Spaceship::ConnectAPI::AppScreenshot.create(app_screenshot_set_id: set.id, path: file)
+        UI.success("Uploaded screenshot: #{File.basename(file)}")
+      end
+    end
+
+    UI.success("All metadata and screenshots uploaded to App Store Connect")
   end
 
   desc "Submit latest build for App Store review"
   lane :submit_review do
     api_key
 
-    deliver(
-      skip_binary_upload: true,
-      skip_screenshots: true,
-      skip_metadata: true,
-      submit_for_review: true,
-      automatic_release: true,
-      force: true,
-      precheck_include_in_app_purchases: false,
-      submission_information: {
-        add_id_info_uses_idfa: false,
-      },
+    # Use Spaceship API directly to avoid deliver's
+    # availableInNewTerritories bug (fastlane #21820)
+    require "spaceship"
+    token = Spaceship::ConnectAPI::Token.from(hash: lane_context[SharedValues::APP_STORE_CONNECT_API_KEY])
+    Spaceship::ConnectAPI.token = token
+
+    app = Spaceship::ConnectAPI::App.find("ai.kodiq")
+    UI.user_error!("App ai.kodiq not found") unless app
+
+    version = app.get_edit_app_store_version
+    UI.user_error!("No editable App Store version found") unless version
+
+    # Find the latest processed build for this app
+    builds = app.get_builds(
+      filter: { processingState: "VALID" },
+      sort: "-uploadedDate",
+      limit: 1,
     )
+    UI.user_error!("No valid builds found") if builds.empty?
+
+    build = builds.first
+    UI.success("Submitting build #{build.version}")
+
+    # Select the build for this version
+    version.select_build(build_id: build.id)
+
+    # Submit for review (idempotent: skip if already submitted)
+    begin
+      version.create_app_store_version_submission
+      UI.success("App submitted for App Store review!")
+    rescue => e
+      if e.message.include?("does not allow 'CREATE'")
+        UI.important("App is already submitted for review — skipping")
+      else
+        raise e
+      end
+    end
   end
 
   # --- Release ---
@@ -204,29 +280,185 @@ end
 platform :android do
   desc "Upload metadata + screenshots to Google Play"
   lane :upload_metadata do
-    supply(
-      json_key_data: ENV["GOOGLE_PLAY_SERVICE_ACCOUNT"],
-      package_name: "ai.kodiq",
-      skip_upload_apk: true,
-      skip_upload_aab: true,
-      skip_upload_changelogs: true,
-      metadata_path: "./fastlane/metadata/android",
-      track: "internal",
+    require "google/apis/androidpublisher_v3"
+    require "googleauth"
+
+    publisher = Google::Apis::AndroidpublisherV3::AndroidPublisherService.new
+    json_key = JSON.parse(ENV["GOOGLE_PLAY_SERVICE_ACCOUNT"])
+    publisher.authorization = Google::Auth::ServiceAccountCredentials.make_creds(
+      json_key_io: StringIO.new(json_key.to_json),
+      scope: "https://www.googleapis.com/auth/androidpublisher",
     )
+
+    package = "ai.kodiq"
+    edit = publisher.insert_edit(package, Google::Apis::AndroidpublisherV3::AppEdit.new)
+    edit_id = edit.id
+
+    # Upload listings only (no track modifications)
+    meta_dir = File.expand_path("metadata/android", File.dirname(__FILE__))
+    UI.message("Resolved meta_dir: #{meta_dir} (exists: #{File.directory?(meta_dir)})")
+    { "en-US" => "en-US", "ru-RU" => "ru-RU" }.each do |gp_locale, dir_locale|
+      locale_dir = File.join(meta_dir, dir_locale)
+      UI.message("Checking locale #{gp_locale}: #{locale_dir} (exists: #{File.directory?(locale_dir)})")
+      next unless File.directory?(locale_dir)
+
+      listing = Google::Apis::AndroidpublisherV3::Listing.new
+      %w[title short_description full_description].each do |field|
+        file = File.join(locale_dir, "#{field}.txt")
+        listing.send("#{field}=", File.read(file).strip) if File.exist?(file)
+      end
+
+      begin
+        publisher.update_edit_listing(package, edit_id, gp_locale, listing)
+        UI.success("Updated listing for #{gp_locale}")
+      rescue => e
+        UI.error("Failed to update listing for #{gp_locale}: #{e.message}")
+        UI.error("Listing data: title=#{listing.title}, short=#{listing.short_description&.length}, full=#{listing.full_description&.length}")
+        raise e
+      end
+
+      # Upload all image types: icon, featureGraphic, phoneScreenshots
+      images_dir = File.join(locale_dir, "images")
+      next unless File.directory?(images_dir)
+
+      # Icon (512x512)
+      icon_file = File.join(images_dir, "icon.png")
+      if File.exist?(icon_file)
+        begin
+          publisher.deleteall_edit_image(package, edit_id, gp_locale, "icon")
+        rescue Google::Apis::ClientError; end
+        publisher.upload_edit_image(package, edit_id, gp_locale, "icon",
+          upload_source: icon_file, content_type: "image/png")
+        UI.success("Uploaded icon")
+      end
+
+      # Feature graphic (1024x500)
+      fg_file = File.join(images_dir, "featureGraphic.png")
+      if File.exist?(fg_file)
+        begin
+          publisher.deleteall_edit_image(package, edit_id, gp_locale, "featureGraphic")
+        rescue Google::Apis::ClientError; end
+        publisher.upload_edit_image(package, edit_id, gp_locale, "featureGraphic",
+          upload_source: fg_file, content_type: "image/png")
+        UI.success("Uploaded feature graphic")
+      end
+
+      # Phone screenshots
+      screenshots_dir = File.join(images_dir, "phoneScreenshots")
+      if File.directory?(screenshots_dir)
+        begin
+          publisher.deleteall_edit_image(package, edit_id, gp_locale, "phoneScreenshots")
+        rescue Google::Apis::ClientError; end
+
+        Dir.glob(File.join(screenshots_dir, "*.{png,jpg,jpeg}")).sort.each do |file|
+          publisher.upload_edit_image(package, edit_id, gp_locale, "phoneScreenshots",
+            upload_source: file, content_type: "image/png")
+          UI.success("Uploaded screenshot: #{File.basename(file)}")
+        end
+      end
+    end
+
+    # App is in "draft" state (never published) — only draft releases allowed.
+    # Remove any non-draft releases (e.g. completed "Initial release") that block commit.
+    %w[production beta alpha internal].each do |track_name|
+      begin
+        track = publisher.get_edit_track(package, edit_id, track_name)
+        next unless track&.releases&.any?
+
+        non_draft = track.releases.select { |r| r.status != "draft" }
+        next if non_draft.empty?
+
+        track.releases = track.releases.select { |r| r.status == "draft" }
+        publisher.update_edit_track(package, edit_id, track_name, track)
+        UI.important("Removed #{non_draft.count} non-draft release(s) from #{track_name}")
+      rescue Google::Apis::ClientError => e
+        UI.message("Track #{track_name}: #{e.message}")
+      end
+    end
+
+    publisher.commit_edit(package, edit_id)
+    UI.success("Google Play metadata + screenshots committed")
+  end
+
+  desc "Upload store listing (metadata + images, no track changes)"
+  lane :upload_store_listing do
+    # Use upload_metadata lane which handles draft apps correctly
+    upload_metadata
+  end
+
+  desc "Export Data Safety CSV template from Google Play, then submit filled version"
+  lane :submit_data_safety do
+    require "google/apis/androidpublisher_v3"
+    require "googleauth"
+    require "net/http"
+    require "json"
+
+    json_key = JSON.parse(ENV["GOOGLE_PLAY_SERVICE_ACCOUNT"])
+    credentials = Google::Auth::ServiceAccountCredentials.make_creds(
+      json_key_io: StringIO.new(json_key.to_json),
+      scope: "https://www.googleapis.com/auth/androidpublisher",
+    )
+    credentials.fetch_access_token!
+    token = credentials.access_token
+
+    package = "ai.kodiq"
+
+    # Step 1: GET current data safety to see the CSV format
+    uri = URI("https://androidpublisher.googleapis.com/androidpublisher/v3/applications/#{package}/dataSafety")
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+
+    get_req = Net::HTTP::Get.new(uri)
+    get_req["Authorization"] = "Bearer #{token}"
+    get_response = http.request(get_req)
+
+    if get_response.code.to_i == 200
+      body = JSON.parse(get_response.body)
+      if body["safetyLabels"]
+        UI.success("Current CSV template retrieved!")
+        UI.message("CSV content:\n#{body['safetyLabels']}")
+
+        # Parse and fill the CSV
+        csv_lines = body["safetyLabels"].split("\n")
+        header = csv_lines.first
+        UI.message("Header: #{header}")
+
+        # Save template for reference
+        File.write("./fastlane/data-safety-template.csv", body["safetyLabels"])
+        UI.success("Template saved to fastlane/data-safety-template.csv")
+      else
+        UI.important("No existing safety labels found. Response: #{get_response.body}")
+      end
+    else
+      UI.important("GET failed (#{get_response.code}): #{get_response.body}")
+      UI.message("Trying POST with standard format...")
+    end
   end
 
   desc "Promote internal build to production"
   lane :promote_to_production do
-    supply(
-      json_key_data: ENV["GOOGLE_PLAY_SERVICE_ACCOUNT"],
-      package_name: "ai.kodiq",
-      skip_upload_apk: true,
-      skip_upload_aab: true,
-      skip_upload_metadata: true,
-      skip_upload_images: true,
-      skip_upload_screenshots: true,
-      track: "internal",
-      track_promote_to: "production",
-    )
+    begin
+      supply(
+        json_key_data: ENV["GOOGLE_PLAY_SERVICE_ACCOUNT"],
+        package_name: "ai.kodiq",
+        skip_upload_apk: true,
+        skip_upload_aab: true,
+        skip_upload_metadata: true,
+        skip_upload_images: true,
+        skip_upload_screenshots: true,
+        skip_upload_changelogs: true,
+        track: "internal",
+        track_promote_to: "production",
+        track_promote_release_status: "draft",
+      )
+    rescue => e
+      if e.message.include?("draft app")
+        UI.important("App is still in draft state on Google Play.")
+        UI.important("First production release must be done manually via Play Console.")
+        UI.important("After that, API promotions will work.")
+      else
+        raise e
+      end
+    end
   end
 end

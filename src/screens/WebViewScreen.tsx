@@ -134,6 +134,10 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }:
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [contentLoaded, setContentLoaded] = useState(false);
 
+  // Crash recovery: max 3 reload attempts to prevent infinite loop
+  const crashCountRef = useRef(0);
+  const MAX_CRASH_RELOADS = 3;
+
   // Re-inject session when token refreshes
   const prevTokenRef = useRef(session.access_token);
   useEffect(() => {
@@ -182,14 +186,8 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }:
     (navState: WebViewNavigation) => {
       canGoBackRef.current = navState.canGoBack;
 
-      // Extract path from URL for tab matching
-      try {
-        const url = new URL(navState.url);
-        const path = url.pathname.replace(/^\/academy/, '') || '/';
-        setActivePath(path);
-      } catch {
-        // Invalid URL
-      }
+      // activePath is set exclusively by page_meta bridge message
+      // to avoid race conditions with URL parsing
 
       // Detect if WebView navigated to login page (session expired in web)
       if (navState.url.includes('/auth/login')) {
@@ -215,6 +213,7 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }:
             setActivePath(msg.path);
             setPageCanGoBack(msg.canGoBack);
             if (!contentLoaded) setContentLoaded(true);
+            crashCountRef.current = 0; // Reset crash counter on successful load
             break;
           case 'notification_count':
             setNotificationCount(msg.count);
@@ -242,6 +241,14 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }:
     },
     [signOut, contentLoaded],
   );
+
+  // Crash recovery: Android kills WebView renderer in background → white screen
+  const handleRenderCrash = useCallback(() => {
+    if (crashCountRef.current >= MAX_CRASH_RELOADS) return;
+    crashCountRef.current += 1;
+    setContentLoaded(false);
+    webViewRef.current?.reload();
+  }, []);
 
   const handleShouldStartLoad = useCallback(
     (event: { url: string }): boolean => {
@@ -349,6 +356,8 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }:
           onNavigationStateChange={handleNavigationStateChange}
           onMessage={handleMessage}
           onShouldStartLoadWithRequest={handleShouldStartLoad}
+          onRenderProcessGone={handleRenderCrash}
+          onContentProcessDidTerminate={handleRenderCrash}
           // Auth: cookies still shared for SSR compatibility
           sharedCookiesEnabled
           // Cache

@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   Platform,
   Pressable,
   StyleSheet,
@@ -11,6 +12,8 @@ import { COLORS } from '../config';
 import type { MobileNavConfig } from '../types/nav';
 import { KodiqLogo } from './icons/KodiqLogo';
 import { getNavIcon } from './icons/NavIcons';
+
+const FADE_DURATION = 150;
 
 interface NativeHeaderProps {
   config: MobileNavConfig;
@@ -39,6 +42,30 @@ export function NativeHeader({
   const SearchIcon = getNavIcon('Search');
   const showBadge = notificationCount > 0;
 
+  // Animated title transition
+  const titleOpacity = useRef(new Animated.Value(1)).current;
+  const [displayTitle, setDisplayTitle] = useState(title);
+  const prevTitle = useRef(title);
+
+  useEffect(() => {
+    if (title === prevTitle.current) return;
+    prevTitle.current = title;
+
+    // Fade out → update → fade in
+    Animated.timing(titleOpacity, {
+      toValue: 0,
+      duration: FADE_DURATION,
+      useNativeDriver: true,
+    }).start(() => {
+      setDisplayTitle(title);
+      Animated.timing(titleOpacity, {
+        toValue: 1,
+        duration: FADE_DURATION,
+        useNativeDriver: true,
+      }).start();
+    });
+  }, [title, titleOpacity]);
+
   return (
     <View style={styles.container}>
       <View style={styles.row}>
@@ -64,18 +91,22 @@ export function NativeHeader({
             </Pressable>
           )}
 
-          {/* Logo */}
+          {/* Logo + wordmark */}
           {config.header.showLogo && !canGoBack && (
             <View style={styles.logo}>
-              <KodiqLogo size={24} />
+              <KodiqLogo size={30} />
+              <Text style={styles.wordmark}>Kodiq</Text>
             </View>
           )}
 
-          {/* Title when navigating deep */}
-          {canGoBack && title ? (
-            <Text style={styles.title} numberOfLines={1}>
-              {title}
-            </Text>
+          {/* Animated title when navigating deep */}
+          {canGoBack && displayTitle ? (
+            <Animated.Text
+              style={[styles.title, { opacity: titleOpacity }]}
+              numberOfLines={1}
+            >
+              {displayTitle}
+            </Animated.Text>
           ) : null}
         </View>
 
@@ -148,7 +179,17 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   logo: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginLeft: -4,
+    gap: 6,
+  },
+  wordmark: {
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+    letterSpacing: 1,
   },
   title: {
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',

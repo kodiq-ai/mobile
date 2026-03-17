@@ -1,12 +1,23 @@
-import messaging from '@react-native-firebase/messaging';
+import {
+  getMessaging,
+  requestPermission,
+  getToken,
+  onTokenRefresh as onFirebaseTokenRefresh,
+  AuthorizationStatus,
+} from '@react-native-firebase/messaging';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-import { ACADEMY_URL } from '../config';
+import { BASE_URL } from '../config';
+import { buildAuthHeaders } from '../utils/auth-headers';
 import { fetchWithRetry } from '../utils/fetch-retry';
+import { logger } from '../utils/logger';
 
+const log = logger.child({ module: 'push' });
+
+const msg = getMessaging();
 const STORAGE_KEY = 'fcm_token';
-const API_URL = `${ACADEMY_URL.replace('/academy', '')}/api/academy/push-token`;
+const API_URL = `${BASE_URL}/api/academy/push-token`;
 
 /**
  * Request push permission, get FCM token, register with backend.
@@ -14,41 +25,41 @@ const API_URL = `${ACADEMY_URL.replace('/academy', '')}/api/academy/push-token`;
  */
 export async function registerPushToken(accessToken?: string): Promise<void> {
   try {
-    const authStatus = await messaging().requestPermission();
+    const authStatus = await requestPermission(msg);
     const enabled =
-      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+      authStatus === AuthorizationStatus.AUTHORIZED ||
+      authStatus === AuthorizationStatus.PROVISIONAL;
 
     if (!enabled) return;
 
-    const token = await messaging().getToken();
+    const token = await getToken(msg);
     if (!token) return;
 
     // Skip if already registered with same token
     const cachedToken = await AsyncStorage.getItem(STORAGE_KEY);
     if (cachedToken === token) return;
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
-    }
-
-    const response = await fetchWithRetry(API_URL, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        token,
-        platform: Platform.OS,
-      }),
-    }, { retries: 3, timeout: 10000 });
+    const response = await fetchWithRetry(
+      API_URL,
+      {
+        method: 'POST',
+        headers: buildAuthHeaders(accessToken),
+        body: JSON.stringify({
+          token,
+          platform: Platform.OS,
+        }),
+      },
+      { retries: 3, timeout: 10000 },
+    );
 
     if (response.ok) {
+      log.info('Push token registered');
       await AsyncStorage.setItem(STORAGE_KEY, token);
+    } else {
+      log.warn({ status: response.status }, 'Push token registration failed');
     }
-  } catch {
-    // Push registration is best-effort
+  } catch (err) {
+    log.error({ err }, 'Push registration error');
   }
 }
 
@@ -60,22 +71,20 @@ export async function unregisterPushToken(accessToken?: string): Promise<void> {
     const token = await AsyncStorage.getItem(STORAGE_KEY);
     if (!token) return;
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
-    }
+    await fetchWithRetry(
+      API_URL,
+      {
+        method: 'DELETE',
+        headers: buildAuthHeaders(accessToken),
+        body: JSON.stringify({ token }),
+      },
+      { retries: 1, timeout: 5000 },
+    );
 
-    await fetch(API_URL, {
-      method: 'DELETE',
-      headers,
-      body: JSON.stringify({ token }),
-    });
-
+    log.info('Push token unregistered');
     await AsyncStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // Best-effort cleanup
+  } catch (err) {
+    log.error({ err }, 'Push token unregister error');
   }
 }
 
@@ -87,37 +96,38 @@ export async function unregisterPushToken(accessToken?: string): Promise<void> {
 export function onTokenRefresh(
   getAccessToken: (() => string | null) | string | undefined,
 ): () => void {
-  return messaging().onTokenRefresh(async (newToken) => {
+  return onFirebaseTokenRefresh(msg, async newToken => {
     const oldToken = await AsyncStorage.getItem(STORAGE_KEY);
 
     const accessToken =
-      typeof getAccessToken === 'function'
-        ? getAccessToken()
-        : getAccessToken;
+      typeof getAccessToken === 'function' ? getAccessToken() : getAccessToken;
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`;
-    }
+    const headers = buildAuthHeaders(accessToken ?? undefined);
 
     if (oldToken && oldToken !== newToken) {
-      await fetch(API_URL, {
-        method: 'DELETE',
-        headers,
-        body: JSON.stringify({ token: oldToken }),
-      });
+      await fetchWithRetry(
+        API_URL,
+        {
+          method: 'DELETE',
+          headers,
+          body: JSON.stringify({ token: oldToken }),
+        },
+        { retries: 1, timeout: 5000 },
+      );
     }
 
-    await fetch(API_URL, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        token: newToken,
-        platform: Platform.OS,
-      }),
-    });
+    await fetchWithRetry(
+      API_URL,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          token: newToken,
+          platform: Platform.OS,
+        }),
+      },
+      { retries: 3, timeout: 10000 },
+    );
 
     await AsyncStorage.setItem(STORAGE_KEY, newToken);
   });

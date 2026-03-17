@@ -34,12 +34,20 @@ function isValidNavConfig(data: unknown): data is MobileNavConfig {
  *
  * Re-fetches when app comes to foreground.
  */
+const COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+
 export function useNavConfig(): MobileNavConfig {
   const [config, setConfig] = useState<MobileNavConfig>(FALLBACK_NAV_CONFIG);
   const fetchingRef = useRef(false);
+  const lastFetchRef = useRef(0);
+  const configJsonRef = useRef('');
 
-  const loadConfig = useCallback(async () => {
+  const loadConfig = useCallback(async (force?: boolean) => {
     if (fetchingRef.current) return;
+
+    // Cooldown: skip if fetched recently (unless forced on mount)
+    if (!force && Date.now() - lastFetchRef.current < COOLDOWN_MS) return;
+
     fetchingRef.current = true;
 
     try {
@@ -53,8 +61,15 @@ export function useNavConfig(): MobileNavConfig {
         if (res.ok) {
           const raw: unknown = await res.json();
           if (!isValidNavConfig(raw)) throw new Error('Invalid nav config');
-          setConfig(raw);
-          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(raw));
+          lastFetchRef.current = Date.now();
+
+          // Only update state if config actually changed
+          const json = JSON.stringify(raw);
+          if (json !== configJsonRef.current) {
+            configJsonRef.current = json;
+            setConfig(raw);
+          }
+          await AsyncStorage.setItem(STORAGE_KEY, json);
           return;
         }
       } catch {
@@ -66,7 +81,10 @@ export function useNavConfig(): MobileNavConfig {
         if (cached) {
           const parsed: unknown = JSON.parse(cached);
           if (isValidNavConfig(parsed)) {
-            setConfig(parsed);
+            if (cached !== configJsonRef.current) {
+              configJsonRef.current = cached;
+              setConfig(parsed);
+            }
             return;
           }
         }
@@ -80,12 +98,12 @@ export function useNavConfig(): MobileNavConfig {
     }
   }, []);
 
-  // Load on mount
+  // Load on mount (forced — bypass cooldown)
   useEffect(() => {
-    loadConfig();
+    loadConfig(true);
   }, [loadConfig]);
 
-  // Re-fetch when app comes to foreground
+  // Re-fetch when app comes to foreground (with cooldown)
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {

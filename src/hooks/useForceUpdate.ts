@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 
-import { ACADEMY_URL } from '../config';
+import { BASE_URL } from '../config';
+import { logger } from '../utils/logger';
 
-const VERSION_URL = `${ACADEMY_URL.replace('/academy', '')}/api/academy/mobile-version`;
-const APP_VERSION = '1.0.0'; // Keep in sync with package.json
+const log = logger.child({ module: 'update' });
+
+const VERSION_URL = `${BASE_URL}/api/academy/mobile-version`;
+export const APP_VERSION = '1.0.0'; // Keep in sync with package.json
 
 export type UpdateStatus = 'ok' | 'soft' | 'force';
 
@@ -36,6 +39,7 @@ function compareSemver(a: string, b: string): number {
 export function useForceUpdate() {
   const [status, setStatus] = useState<UpdateStatus>('ok');
   const [storeUrl, setStoreUrl] = useState<string | null>(null);
+  const [requiredVersion, setRequiredVersion] = useState<string | null>(null);
 
   const check = useCallback(async () => {
     try {
@@ -45,30 +49,42 @@ export function useForceUpdate() {
       clearTimeout(timer);
 
       if (!res.ok) return;
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- untyped
       const data: VersionResponse = await res.json();
 
-      const url = Platform.OS === 'ios' ? data.updateUrl.ios : data.updateUrl.android;
+      const url =
+        Platform.OS === 'ios' ? data.updateUrl.ios : data.updateUrl.android;
       setStoreUrl(url);
 
       if (compareSemver(APP_VERSION, data.minVersion) < 0) {
+        log.warn(
+          { current: APP_VERSION, min: data.minVersion },
+          'Force update required',
+        );
+        setRequiredVersion(data.minVersion);
         setStatus('force');
       } else if (compareSemver(APP_VERSION, data.latestVersion) < 0) {
+        log.info(
+          { current: APP_VERSION, latest: data.latestVersion },
+          'Soft update available',
+        );
+        setRequiredVersion(data.latestVersion);
         setStatus('soft');
       } else {
         setStatus('ok');
       }
-    } catch {
-      // Network error — skip check, don't block the user
+    } catch (err) {
+      log.debug({ err }, 'Version check failed');
     }
   }, []);
 
   useEffect(() => {
-    check();
+    void check();
   }, [check]);
 
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') check();
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'active') void check();
     });
     return () => sub.remove();
   }, [check]);
@@ -77,5 +93,5 @@ export function useForceUpdate() {
     if (status === 'soft') setStatus('ok');
   }, [status]);
 
-  return { status, storeUrl, dismiss };
+  return { status, storeUrl, requiredVersion, dismiss };
 }

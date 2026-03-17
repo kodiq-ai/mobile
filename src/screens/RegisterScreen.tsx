@@ -8,7 +8,6 @@ import {
   View,
 } from 'react-native';
 
-import { signInWithGoogle } from '../auth/oauth';
 import { useAuth } from '../auth/useAuth';
 import { AuthButton } from '../components/AuthButton';
 import { AuthDivider } from '../components/AuthDivider';
@@ -55,29 +54,12 @@ export function RegisterScreen({ onNavigate }: RegisterScreenProps) {
     }
   }, [fullName, email, password, signUpWithEmail, onNavigate]);
 
-  const handleGoogleOAuth = useCallback(async () => {
+  const handleOAuthLogin = useCallback(async (provider: 'google' | 'github') => {
     setLoading(true);
-    setLoadingProvider('google');
+    setLoadingProvider(provider);
     setError(null);
     try {
-      const result = await signInWithGoogle();
-      if (result.error) {
-        setError(translateError(result.error));
-      }
-    } catch {
-      setError('Ошибка входа через Google');
-    } finally {
-      setLoading(false);
-      setLoadingProvider(null);
-    }
-  }, []);
-
-  const handleGitHubOAuth = useCallback(async () => {
-    setLoading(true);
-    setLoadingProvider('github');
-    setError(null);
-    try {
-      const result = await signInWithOAuth('github');
+      const result = await signInWithOAuth(provider);
       if (result.error) {
         setError(translateError(result.error));
         return;
@@ -86,12 +68,15 @@ export function RegisterScreen({ onNavigate }: RegisterScreenProps) {
         await Linking.openURL(result.url);
       }
     } catch {
-      setError('Ошибка входа через GitHub');
+      setError(`Ошибка входа через ${provider}`);
     } finally {
       setLoading(false);
       setLoadingProvider(null);
     }
   }, [signInWithOAuth]);
+
+  const handleGitHubOAuth = useCallback(() => handleOAuthLogin('github'), [handleOAuthLogin]);
+  const handleGoogleOAuth = useCallback(() => handleOAuthLogin('google'), [handleOAuthLogin]);
 
   return (
     <AuthLayout
