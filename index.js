@@ -9,6 +9,7 @@ import { SENTRY_DSN } from './src/config';
 // Initialize Sentry before anything else
 Sentry.init({
   dsn: SENTRY_DSN,
+  release: `kodiq-mobile@${require('./package.json').version}`,
   tracesSampleRate: 0.2,
   environment: __DEV__ ? 'development' : 'production',
   enabled: !__DEV__,

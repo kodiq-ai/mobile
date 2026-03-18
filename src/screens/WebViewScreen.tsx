@@ -1,3 +1,4 @@
+import * as Sentry from '@sentry/react-native';
 import type { Session } from '@supabase/supabase-js';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -236,14 +237,49 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }:
             break;
         }
       } catch {
-        // Ignore non-JSON messages
+        Sentry.addBreadcrumb({
+          category: 'bridge',
+          message: 'Failed to parse bridge message',
+          level: 'warning',
+        });
       }
     },
     [signOut, contentLoaded],
   );
 
+  // WebView load error — network failures, SSL errors, etc.
+  const handleWebViewError = useCallback(
+    (syntheticEvent: { nativeEvent: { description: string; url?: string; code?: number } }) => {
+      const { nativeEvent } = syntheticEvent;
+      Sentry.captureException(new Error(`WebView: ${nativeEvent.description}`), {
+        tags: { component: 'WebView', errorType: 'load_error' },
+        extra: { url: nativeEvent.url, code: nativeEvent.code },
+      });
+    },
+    [],
+  );
+
+  // WebView HTTP errors — report 5xx as warnings
+  const handleHttpError = useCallback(
+    (syntheticEvent: { nativeEvent: { url: string; statusCode: number } }) => {
+      const { nativeEvent } = syntheticEvent;
+      if (nativeEvent.statusCode >= 500) {
+        Sentry.captureMessage(`WebView HTTP ${nativeEvent.statusCode}`, {
+          level: 'warning',
+          tags: { component: 'WebView', errorType: 'http_error' },
+          extra: { url: nativeEvent.url, statusCode: nativeEvent.statusCode },
+        });
+      }
+    },
+    [],
+  );
+
   // Crash recovery: Android kills WebView renderer in background → white screen
   const handleRenderCrash = useCallback(() => {
+    Sentry.captureMessage('WebView render process crashed', {
+      level: 'error',
+      tags: { component: 'WebView', errorType: 'render_crash' },
+    });
     if (crashCountRef.current >= MAX_CRASH_RELOADS) return;
     crashCountRef.current += 1;
     setContentLoaded(false);
@@ -356,6 +392,8 @@ export function WebViewScreen({ isOffline, deepLinkUrl, session, updateBanner }:
           onNavigationStateChange={handleNavigationStateChange}
           onMessage={handleMessage}
           onShouldStartLoadWithRequest={handleShouldStartLoad}
+          onError={handleWebViewError}
+          onHttpError={handleHttpError}
           onRenderProcessGone={handleRenderCrash}
           onContentProcessDidTerminate={handleRenderCrash}
           // Auth: cookies still shared for SSR compatibility
