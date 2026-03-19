@@ -181,8 +181,9 @@ export const FEATURE_GRAPHIC = {
     ru: 'Научись создавать продукты\nс помощью AI',
   },
   layout:
-    'Logo on the LEFT at ~25% width. Caption on the RIGHT, left-aligned. ' +
+    'Logo on the LEFT at ~25% width. The EXACT text "{{caption}}" on the RIGHT, left-aligned, large bold warm white. ' +
     'Background: dark (#0c0c0c) with a subtle warm gold diagonal gradient stripe from bottom-left to top-right (very faint). ' +
     "Below the caption — small text '312 lessons · AI Mentor · Gamification' in muted gold. " +
+    'CRITICAL: Render the caption text LETTER BY LETTER exactly as given — do NOT correct, rephrase, or change any word. Copy each character precisely. ' +
     'ONLY use gold (#c4a882) and warm white (#f5f5f0) colors. No blue, no cyan.',
 };
