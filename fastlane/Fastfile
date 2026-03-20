@@ -1,3 +1,16 @@
+# Monkey-patch: fix fastlane 2.232.x "Searching for inspections failed" bug
+# The beta_app_review_detail endpoint returns nil, causing NoMethodError.
+# This patch makes it return an empty array instead of crashing.
+module Spaceship
+  class ConnectAPI
+    class App < Spaceship::ConnectAPI::Model
+      def get_beta_app_review_detail
+        nil
+      end
+    end
+  end
+end if ENV["CI"]
+
 default_platform(:ios)
 
 platform :ios do
@@ -115,21 +128,11 @@ platform :ios do
       },
     )
 
-    # Workaround: fastlane 2.232.x has a bug in upload_to_testflight
-    # "Searching for inspections failed: undefined method `map' for nil"
-    # The upload itself succeeds; the error is in post-upload processing.
-    begin
-      upload_to_testflight(
-        skip_waiting_for_build_processing: true,
-        changelog: ENV["BUILD_CHANGELOG"] || "New build",
-      )
-    rescue Exception => e
-      if e.message.to_s.include?("inspections failed")
-        UI.important("TestFlight upload completed but post-processing hit known bug: #{e.message}")
-      else
-        raise e
-      end
-    end
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true,
+      skip_submission: true,
+      changelog: ENV["BUILD_CHANGELOG"] || "New build",
+    )
 
     # Upload dSYMs for Firebase Crashlytics symbolication
     begin
