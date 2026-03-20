@@ -36,12 +36,14 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build iOS
+      - name: Decode Firebase config
         env:
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          GOOGLE_SERVICE_INFO_B64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
+        run: echo "$GOOGLE_SERVICE_INFO_B64" | base64 -d > GoogleService-Info.plist
+
+      - name: Build iOS
         run: |
           eas build \
             --platform ios \
             --profile ${{ inputs.profile || 'production' }} \
-            --auto-submit \
             --non-interactive
