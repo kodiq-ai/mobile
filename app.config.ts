@@ -17,7 +17,11 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => ({
   ...config,
   name: 'Kodiq Academy',
   slug: 'kodiq-academy',
+  owner: 'kodiq',
   version: '1.0.0',
+  extra: {
+    eas: { projectId: '5741bfe7-8b41-4619-b7d0-7b5e5850cbdf' },
+  },
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'dark',
