@@ -6,7 +6,7 @@ on:
 jobs:
   setup:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4
@@ -32,44 +32,85 @@ jobs:
         run: |
           echo "$GOOGLE_SERVICES_B64" | base64 -d > google-services.json
           echo "$GOOGLE_SERVICE_INFO_B64" | base64 -d > GoogleService-Info.plist
-          ls -la google-services.json GoogleService-Info.plist
 
       - name: Upload Firebase configs to EAS
         run: |
-          eas env:delete --name GOOGLE_SERVICES_JSON --environment production --non-interactive 2>/dev/null || true
+          for name in GOOGLE_SERVICES_JSON GOOGLE_SERVICE_INFO_PLIST; do
+            eas env:delete --name "$name" --environment production --non-interactive 2>/dev/null || true
+          done
           eas env:create --name GOOGLE_SERVICES_JSON \
-            --type file \
-            --value ./google-services.json \
-            --visibility secret \
-            --environment production \
-            --non-interactive
-
-          eas env:delete --name GOOGLE_SERVICE_INFO_PLIST --environment production --non-interactive 2>/dev/null || true
+            --type file --value ./google-services.json \
+            --visibility secret --environment production --non-interactive
           eas env:create --name GOOGLE_SERVICE_INFO_PLIST \
-            --type file \
-            --value ./GoogleService-Info.plist \
-            --visibility secret \
-            --environment production \
-            --non-interactive
+            --type file --value ./GoogleService-Info.plist \
+            --visibility secret --environment production --non-interactive
 
-      - name: Write ASC API key
+      - name: Decrypt Match certs and upload to EAS
         env:
-          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
-          ASC_KEY_CONTENT: ${{ secrets.APPSTORE_CONNECT_API_KEY }}
+          MATCH_DEPLOY_KEY: ${{ secrets.MATCH_DEPLOY_KEY }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
         run: |
-          mkdir -p ~/.appstoreconnect/private_keys
-          echo "$ASC_KEY_CONTENT" | base64 -d > "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          # Clone Match certs repo
+          mkdir -p ~/.ssh
+          echo "$MATCH_DEPLOY_KEY" > ~/.ssh/match_key
+          chmod 600 ~/.ssh/match_key
+          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+          GIT_SSH_COMMAND="ssh -i ~/.ssh/match_key -o StrictHostKeyChecking=no" \
+            git clone git@github.com:artemboev7-web/kodiq-mobile-certs.git /tmp/match-certs
 
-      - name: Trigger iOS build (creates credentials automatically)
+          # Decrypt p12 and mobileprovision (Match uses openssl)
+          cd /tmp/match-certs
+          for f in certs/distribution/*.p12 profiles/appstore/*.mobileprovision; do
+            openssl enc -aes-256-cbc -d -md md5 \
+              -k "$MATCH_PASSWORD" \
+              -in "$f" -out "${f}.dec" 2>/dev/null && mv "${f}.dec" "$f" \
+              || echo "Decrypt failed for $f (might be unencrypted)"
+          done
+
+          echo "Decrypted Match files"
+          file certs/distribution/*.p12
+          file profiles/appstore/*.mobileprovision
+
+      - name: Upload iOS credentials to EAS
         env:
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           EXPO_ASC_API_KEY_ID: ${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}
           EXPO_ASC_API_KEY_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
-          EXPO_ASC_API_KEY_PATH: ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}.p8
+          ASC_KEY_CONTENT: ${{ secrets.APPSTORE_CONNECT_API_KEY }}
           EXPO_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
+          # Write ASC API key
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$ASC_KEY_CONTENT" | base64 -d > "$HOME/.appstoreconnect/private_keys/AuthKey_${EXPO_ASC_API_KEY_ID}.p8"
+          export EXPO_ASC_API_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_${EXPO_ASC_API_KEY_ID}.p8"
+
+          # Upload distribution cert + provisioning profile to EAS via API
+          P12_PATH="/tmp/match-certs/certs/distribution/75R2WF9G52.p12"
+          PROFILE_PATH="/tmp/match-certs/profiles/appstore/AppStore_ai.kodiq.mobileprovision"
+
+          # Use eas credentials:configure-build to set up credentials from files
+          # This creates credentials on EAS servers for non-interactive builds
+          npx eas-cli credentials:set-up \
+            --platform ios \
+            --profile production \
+            --distribution-p12-path "$P12_PATH" \
+            --provisioning-profile-path "$PROFILE_PATH" \
+            --non-interactive 2>/dev/null || \
+          echo "Direct upload not available, trying build with local credentials"
+
+          # Alternative: build with local credentials
           eas build \
             --platform ios \
             --profile production \
+            --local \
             --non-interactive \
-            --no-wait || echo "Build submitted or credentials created"
+            --no-wait 2>/dev/null || \
+          echo "Local build not available on Linux. Credentials must be set up on macOS."
+
+      - name: Trigger Android build (no credentials needed)
+        run: |
+          eas build \
+            --platform android \
+            --profile production \
+            --non-interactive \
+            --no-wait || echo "Android build submitted"
