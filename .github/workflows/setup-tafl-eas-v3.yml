@@ -1,0 +1,46 @@
+name: Setup TAFL EAS Creds v3
+on:
+  workflow_dispatch:
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN_TAFL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: artemboev7-web/tafl
+          token: ${{ secrets.GH_PAT_CROSS_REPO }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm install -g eas-cli@latest
+
+      - name: Set ASC credentials on EAS
+        env:
+          KEY_ID: ${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          KEY_P8: ${{ secrets.APPSTORE_CONNECT_API_KEY }}
+        run: |
+          for ENV in production preview development; do
+            eas env:create \
+              --name EXPO_APPLE_APP_STORE_CONNECT_API_KEY_KEY_ID \
+              --value "$KEY_ID" --visibility secret \
+              --environment $ENV 2>/dev/null || echo "exists: key_id $ENV"
+            eas env:create \
+              --name EXPO_APPLE_APP_STORE_CONNECT_API_KEY_ISSUER_ID \
+              --value "$ISSUER_ID" --visibility secret \
+              --environment $ENV 2>/dev/null || echo "exists: issuer $ENV"
+            eas env:create \
+              --name EXPO_APPLE_APP_STORE_CONNECT_API_KEY_KEY_P8 \
+              --value "$KEY_P8" --visibility secret \
+              --environment $ENV 2>/dev/null || echo "exists: p8 $ENV"
+          done
+
+      - name: Verify
+        run: eas env:list --environment development
