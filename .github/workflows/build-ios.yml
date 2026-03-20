@@ -43,6 +43,14 @@ jobs:
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Decode GoogleService-Info.plist
+        env:
+          GOOGLE_SERVICE_INFO_B64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
+        run: echo "$GOOGLE_SERVICE_INFO_B64" | base64 -d > GoogleService-Info.plist
+
+      - name: Generate native project (Expo prebuild)
+        run: npx expo prebuild --platform ios --no-install
+
       - name: Set up SSH for Match cert repo
         env:
           MATCH_DEPLOY_KEY: ${{ secrets.MATCH_DEPLOY_KEY }}
@@ -57,17 +65,16 @@ jobs:
             StrictHostKeyChecking no
           SSHEOF
 
-      - name: Decode GoogleService-Info.plist
-        env:
-          GOOGLE_SERVICE_INFO_B64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
-        run: echo "$GOOGLE_SERVICE_INFO_B64" | base64 -d > ios/KodiqAcademy/GoogleService-Info.plist
+      - name: Install CocoaPods
+        run: cd ios && pod install
 
       - name: Extract version
         id: version
+        env:
+          VERSION_TAG: ${{ inputs.version_tag }}
         run: |
-          TAG="${{ inputs.version_tag }}"
-          if [[ "$TAG" == v* ]]; then
-            VERSION="${TAG#v}"
+          if [[ "$VERSION_TAG" == v* ]]; then
+            VERSION="${VERSION_TAG#v}"
             echo "name=${VERSION}" >> "$GITHUB_OUTPUT"
           else
             echo "name=1.0.0" >> "$GITHUB_OUTPUT"

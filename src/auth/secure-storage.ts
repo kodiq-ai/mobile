@@ -1,21 +1,21 @@
 /**
  * Secure storage adapter for Supabase auth.
  *
- * Uses react-native-keychain (iOS Keychain / Android Keystore) instead of
- * AsyncStorage to protect access_token and refresh_token at rest.
+ * Uses expo-secure-store (iOS Keychain / Android EncryptedSharedPreferences)
+ * instead of AsyncStorage to protect access_token and refresh_token at rest.
  *
- * Falls back to AsyncStorage for non-auth keys or if Keychain is unavailable.
+ * Falls back to AsyncStorage for non-auth keys or if SecureStore is unavailable.
  *
- * On first run after upgrade, migrates existing tokens from AsyncStorage → Keychain.
+ * On first run after upgrade, migrates existing tokens from AsyncStorage → SecureStore.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Keychain from 'react-native-keychain';
+import * as SecureStore from 'expo-secure-store';
 
 import { logger } from '../utils/logger';
 
 const log = logger.child({ module: 'secure-storage' });
 
-const SERVICE_NAME = 'ai.kodiq.auth';
+const KEY_PREFIX = 'ai.kodiq.auth';
 
 /**
  * Supabase-compatible storage adapter.
@@ -24,14 +24,12 @@ const SERVICE_NAME = 'ai.kodiq.auth';
 export const secureStorage = {
   async getItem(key: string): Promise<string | null> {
     try {
-      const credentials = await Keychain.getGenericPassword({
-        service: keyToService(key),
-      });
-      if (credentials) return credentials.password;
+      const value = await SecureStore.getItemAsync(prefixKey(key));
+      if (value) return value;
     } catch (err) {
       log.debug(
         { err, key },
-        'Keychain read failed, falling back to AsyncStorage',
+        'SecureStore read failed, falling back to AsyncStorage',
       );
     }
 
@@ -41,16 +39,13 @@ export const secureStorage = {
 
   async setItem(key: string, value: string): Promise<void> {
     try {
-      await Keychain.setGenericPassword(key, value, {
-        service: keyToService(key),
-        accessible: Keychain.ACCESSIBLE.AFTER_FIRST_UNLOCK,
-      });
+      await SecureStore.setItemAsync(prefixKey(key), value);
       // Remove from AsyncStorage if it was there (migration cleanup)
       await AsyncStorage.removeItem(key).catch(() => {});
     } catch (err) {
       log.warn(
         { err, key },
-        'Keychain write failed, falling back to AsyncStorage',
+        'SecureStore write failed, falling back to AsyncStorage',
       );
       await AsyncStorage.setItem(key, value);
     }
@@ -58,16 +53,16 @@ export const secureStorage = {
 
   async removeItem(key: string): Promise<void> {
     try {
-      await Keychain.resetGenericPassword({ service: keyToService(key) });
+      await SecureStore.deleteItemAsync(prefixKey(key));
     } catch (err) {
-      log.debug({ err, key }, 'Keychain reset failed');
+      log.debug({ err, key }, 'SecureStore delete failed');
     }
     // Always clean AsyncStorage too (migration remnants)
     await AsyncStorage.removeItem(key).catch(() => {});
   },
 };
 
-/** Map storage key → Keychain service name for isolation */
-function keyToService(key: string): string {
-  return `${SERVICE_NAME}.${key}`;
+/** Prefix key to avoid collisions in SecureStore's flat namespace */
+function prefixKey(key: string): string {
+  return `${KEY_PREFIX}.${key}`;
 }

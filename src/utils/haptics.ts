@@ -1,45 +1,32 @@
 import { Platform } from 'react-native';
-import ReactNativeHapticFeedback, {
-  HapticFeedbackTypes,
-} from 'react-native-haptic-feedback';
-
-const options = {
-  enableVibrateFallback: true,
-  ignoreAndroidSystemSettings: false,
-};
+import * as Haptics from 'expo-haptics';
 
 /** Light tap — tab press, menu item tap */
 export function hapticLight() {
   if (Platform.OS === 'web') return;
-  ReactNativeHapticFeedback.trigger(HapticFeedbackTypes.impactLight, options);
+  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 }
 
 /** Medium impact — drawer open, significant action */
 export function hapticMedium() {
   if (Platform.OS === 'web') return;
-  ReactNativeHapticFeedback.trigger(HapticFeedbackTypes.impactMedium, options);
+  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 }
 
 /** Success notification — milestone achieved, task completed */
 export function hapticSuccess() {
   if (Platform.OS === 'web') return;
-  ReactNativeHapticFeedback.trigger(
-    HapticFeedbackTypes.notificationSuccess,
-    options,
-  );
+  void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 }
 
 /** Error notification — auth failure, biometric rejection */
 export function hapticError() {
   if (Platform.OS === 'web') return;
-  ReactNativeHapticFeedback.trigger(
-    HapticFeedbackTypes.notificationError,
-    options,
-  );
+  void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
 }
 
 /** Selection tick — toggle, picker change */
 export function hapticSelection() {
   if (Platform.OS === 'web') return;
-  ReactNativeHapticFeedback.trigger(HapticFeedbackTypes.selection, options);
+  void Haptics.selectionAsync();
 }

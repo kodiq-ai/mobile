@@ -1,9 +1,11 @@
 import * as Sentry from '@sentry/react-native';
-import { getMessaging, setBackgroundMessageHandler } from '@react-native-firebase/messaging';
-import { AppRegistry } from 'react-native';
+import {
+  getMessaging,
+  setBackgroundMessageHandler,
+} from '@react-native-firebase/messaging';
+import { registerRootComponent } from 'expo';
 
 import App from './App';
-import { name as appName } from './app.json';
 import { SENTRY_DSN } from './src/config';
 
 // Initialize Sentry before anything else
@@ -16,9 +18,9 @@ Sentry.init({
 });
 
 // Handle push notifications received while app is in background/quit
-setBackgroundMessageHandler(getMessaging(), async (_remoteMessage) => {
+setBackgroundMessageHandler(getMessaging(), async _remoteMessage => {
   // Notification display is handled automatically by FCM.
   // This handler is for data-only messages or custom processing.
 });
 
-AppRegistry.registerComponent(appName, () => Sentry.wrap(App));
+registerRootComponent(Sentry.wrap(App));

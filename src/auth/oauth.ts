@@ -57,37 +57,39 @@ export async function signInWithApple(): Promise<{ error?: string }> {
 
   try {
     // Dynamic import — only available on iOS
-    const { appleAuth } = await import(
-      '@invertase/react-native-apple-authentication'
-    );
+    const AppleAuthentication = await import('expo-apple-authentication');
 
     // Generate nonce for Supabase verification
     const rawNonce = generateNonce();
     const hashedNonce = await sha256(rawNonce);
 
-    const appleResponse = await appleAuth.performRequest({
-      requestedOperation: appleAuth.Operation.LOGIN,
-      requestedScopes: [appleAuth.Scope.EMAIL, appleAuth.Scope.FULL_NAME],
+    const credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+      ],
       nonce: hashedNonce,
     });
 
-    if (!appleResponse.identityToken) {
+    if (!credential.identityToken) {
       return { error: 'Не удалось получить токен Apple' };
     }
 
     const { error } = await supabase.auth.signInWithIdToken({
       provider: 'apple',
-      token: appleResponse.identityToken,
+      token: credential.identityToken,
       nonce: rawNonce,
     });
 
     if (error) return { error: error.message };
     return {};
   } catch (err: unknown) {
-    // User cancelled Apple dialog
+    // User cancelled Apple dialog (error code ERR_REQUEST_CANCELED)
     if (
       err instanceof Error &&
-      (err.message.includes('1001') || err.message.includes('canceled'))
+      (err.message.includes('ERR_REQUEST_CANCELED') ||
+        err.message.includes('1001') ||
+        err.message.includes('canceled'))
     ) {
       return {};
     }
