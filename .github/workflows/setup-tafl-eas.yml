@@ -1,0 +1,33 @@
+name: Setup TAFL EAS Credentials
+on:
+  workflow_dispatch:
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g eas-cli
+      - name: Setup EAS credentials for TAFL
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN_KODIQ }}
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_KEY_B64: ${{ secrets.APPSTORE_CONNECT_API_KEY }}
+        run: |
+          for ENV in production preview development; do
+            eas env:create --project-id da09c24a-b679-4f32-92ee-82c0338c7b27 \
+              --name EXPO_APPLE_APP_STORE_CONNECT_API_KEY_KEY_ID \
+              --value "$ASC_KEY_ID" --visibility secret \
+              --environment $ENV --non-interactive 2>/dev/null || true
+            eas env:create --project-id da09c24a-b679-4f32-92ee-82c0338c7b27 \
+              --name EXPO_APPLE_APP_STORE_CONNECT_API_KEY_ISSUER_ID \
+              --value "$ASC_ISSUER_ID" --visibility secret \
+              --environment $ENV --non-interactive 2>/dev/null || true
+            eas env:create --project-id da09c24a-b679-4f32-92ee-82c0338c7b27 \
+              --name EXPO_APPLE_APP_STORE_CONNECT_API_KEY_KEY_P8 \
+              --value "$ASC_KEY_B64" --visibility secret \
+              --environment $ENV --non-interactive 2>/dev/null || true
+          done
+          echo "Done!"
