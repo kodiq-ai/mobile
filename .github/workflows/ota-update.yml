@@ -1,0 +1,49 @@
+name: OTA Update
+
+on:
+  workflow_dispatch:
+    inputs:
+      message:
+        description: 'Update message (shown in EAS dashboard)'
+        required: false
+        default: 'Bug fixes and improvements'
+      channel:
+        description: 'Update channel'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - preview
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Publish OTA update
+        env:
+          UPDATE_CHANNEL: ${{ inputs.channel }}
+          UPDATE_MESSAGE: ${{ inputs.message }}
+        run: |
+          eas update \
+            --channel "$UPDATE_CHANNEL" \
+            --message "$UPDATE_MESSAGE" \
+            --non-interactive

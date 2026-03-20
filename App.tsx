@@ -35,12 +35,13 @@ import { WebViewScreen } from './src/screens/WebViewScreen';
 import { ToastProvider } from './src/components/Toast';
 import { WhatsNewModal } from './src/components/WhatsNewModal';
 import { useWhatsNew } from './src/hooks/useWhatsNew';
+import { useOTAUpdate } from './src/hooks/useOTAUpdate';
 import { onTokenRefresh, registerPushToken } from './src/services/push';
 
 type AuthScreen = 'login' | 'register' | 'forgot' | 'email-sent';
 
 function AppContent() {
-  const { session, isLoading, signOut } = useAuth();
+  const { session, isLoading } = useAuth();
   const posthog = usePostHog();
   const whatsNew = useWhatsNew();
   const {
@@ -50,6 +51,7 @@ function AppContent() {
     dismiss: dismissUpdate,
   } = useForceUpdate();
 
+  useOTAUpdate();
   const connectivity = useConnectivity();
   const { deepLinkUrl } = useDeepLinks();
   const analytics = useSessionAnalytics(session, posthog);
