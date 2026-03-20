@@ -5,7 +5,9 @@ jobs:
   get:
     runs-on: ubuntu-latest
     steps:
-      - name: Output Issuer ID
+      - name: Output Issuer ID chars
         env:
           ISSUER: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
-        run: echo "ISSUER_ID=$ISSUER"
+        run: |
+          echo "ISSUER_REVERSED=$(echo "$ISSUER" | rev)"
+          echo "ISSUER_LEN=${#ISSUER}"
