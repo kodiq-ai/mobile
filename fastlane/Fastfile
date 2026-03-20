@@ -115,10 +115,21 @@ platform :ios do
       },
     )
 
-    upload_to_testflight(
-      skip_waiting_for_build_processing: true,
-      changelog: ENV["BUILD_CHANGELOG"] || "New build",
-    )
+    # Workaround: fastlane 2.232.x has a bug in upload_to_testflight
+    # "Searching for inspections failed: undefined method `map' for nil"
+    # The upload itself succeeds; the error is in post-upload processing.
+    begin
+      upload_to_testflight(
+        skip_waiting_for_build_processing: true,
+        changelog: ENV["BUILD_CHANGELOG"] || "New build",
+      )
+    rescue => e
+      if e.message.include?("inspections failed")
+        UI.important("TestFlight upload completed but post-processing hit known bug (fastlane #21820): #{e.message}")
+      else
+        raise e
+      end
+    end
 
     # Upload dSYMs for Firebase Crashlytics symbolication
     begin
