@@ -123,9 +123,9 @@ platform :ios do
         skip_waiting_for_build_processing: true,
         changelog: ENV["BUILD_CHANGELOG"] || "New build",
       )
-    rescue => e
-      if e.message.include?("inspections failed")
-        UI.important("TestFlight upload completed but post-processing hit known bug (fastlane #21820): #{e.message}")
+    rescue Exception => e
+      if e.message.to_s.include?("inspections failed")
+        UI.important("TestFlight upload completed but post-processing hit known bug: #{e.message}")
       else
         raise e
       end
