@@ -1,0 +1,75 @@
+name: Setup EAS (one-time)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Decode Firebase configs
+        env:
+          GOOGLE_SERVICES_B64: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          GOOGLE_SERVICE_INFO_B64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
+        run: |
+          echo "$GOOGLE_SERVICES_B64" | base64 -d > google-services.json
+          echo "$GOOGLE_SERVICE_INFO_B64" | base64 -d > GoogleService-Info.plist
+          ls -la google-services.json GoogleService-Info.plist
+
+      - name: Upload Firebase configs to EAS
+        run: |
+          eas env:delete --name GOOGLE_SERVICES_JSON --environment production --non-interactive 2>/dev/null || true
+          eas env:create --name GOOGLE_SERVICES_JSON \
+            --type file \
+            --value ./google-services.json \
+            --visibility secret \
+            --environment production \
+            --non-interactive
+
+          eas env:delete --name GOOGLE_SERVICE_INFO_PLIST --environment production --non-interactive 2>/dev/null || true
+          eas env:create --name GOOGLE_SERVICE_INFO_PLIST \
+            --type file \
+            --value ./GoogleService-Info.plist \
+            --visibility secret \
+            --environment production \
+            --non-interactive
+
+      - name: Write ASC API key
+        env:
+          ASC_KEY_ID: ${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.APPSTORE_CONNECT_API_KEY }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$ASC_KEY_CONTENT" | base64 -d > "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+
+      - name: Trigger iOS build (creates credentials automatically)
+        env:
+          EXPO_ASC_API_KEY_ID: ${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}
+          EXPO_ASC_API_KEY_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          EXPO_ASC_API_KEY_PATH: ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}.p8
+          EXPO_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          eas build \
+            --platform ios \
+            --profile production \
+            --non-interactive \
+            --no-wait || echo "Build submitted or credentials created"
