@@ -2,27 +2,21 @@ name: Build iOS
 
 on:
   push:
-    branches: [main]
     tags: ['v*']
   workflow_dispatch:
     inputs:
-      version_tag:
-        description: 'Version tag (e.g. v1.0.0). Leave empty for dev build.'
-        required: false
-        type: string
-
-# Required secrets:
-#   APPSTORE_CONNECT_API_KEY_ID    — App Store Connect API key ID
-#   APPSTORE_CONNECT_ISSUER_ID     — API issuer ID
-#   APPSTORE_CONNECT_API_KEY       — .p8 key content (base64)
-#   APPLE_TEAM_ID                  — Apple Developer Team ID
-#   MATCH_DEPLOY_KEY               — SSH key for kodiq-mobile-certs repo
-#   MATCH_PASSWORD                 — Encryption password for match
-#   GOOGLE_SERVICE_INFO_PLIST      — GoogleService-Info.plist (base64)
+      profile:
+        description: 'Build profile'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - preview
 
 jobs:
   build:
-    runs-on: macos-26
+    runs-on: ubuntu-latest
     timeout-minutes: 60
 
     steps:
@@ -35,65 +29,19 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - uses: ruby/setup-ruby@v1
+      - run: pnpm install --frozen-lockfile
+
+      - uses: expo/expo-github-action@v8
         with:
-          ruby-version: '3.3'
-          bundler-cache: true
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Install JS dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Decode GoogleService-Info.plist
+      - name: Build iOS
         env:
-          GOOGLE_SERVICE_INFO_B64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
-        run: echo "$GOOGLE_SERVICE_INFO_B64" | base64 -d > GoogleService-Info.plist
-
-      - name: Generate native project (Expo prebuild)
-        run: npx expo prebuild --platform ios --no-install
-
-      - name: Set up SSH for Match cert repo
-        env:
-          MATCH_DEPLOY_KEY: ${{ secrets.MATCH_DEPLOY_KEY }}
-        run: |
-          mkdir -p ~/.ssh
-          echo "$MATCH_DEPLOY_KEY" > ~/.ssh/match_key
-          chmod 600 ~/.ssh/match_key
-          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
-          cat >> ~/.ssh/config << 'SSHEOF'
-          Host github.com
-            IdentityFile ~/.ssh/match_key
-            StrictHostKeyChecking no
-          SSHEOF
-
-      - name: Install CocoaPods
-        run: cd ios && pod install
-
-      - name: Extract version
-        id: version
-        env:
-          VERSION_TAG: ${{ inputs.version_tag }}
-        run: |
-          if [[ "$VERSION_TAG" == v* ]]; then
-            VERSION="${VERSION_TAG#v}"
-            echo "name=${VERSION}" >> "$GITHUB_OUTPUT"
-          else
-            echo "name=1.0.0" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Build and upload to TestFlight
-        env:
-          APPSTORE_CONNECT_API_KEY_ID: ${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}
-          APPSTORE_CONNECT_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
-          APPSTORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APPSTORE_CONNECT_API_KEY }}
-          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          BUILD_VERSION: ${{ steps.version.outputs.name }}
-        run: bundle exec fastlane ios beta
-
-      - name: Upload build logs on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-build-logs
-          path: ~/Library/Logs/gym/
-          retention-days: 7
+        run: |
+          eas build \
+            --platform ios \
+            --profile ${{ inputs.profile || 'production' }} \
+            --auto-submit \
+            --non-interactive

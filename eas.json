@@ -18,6 +18,16 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "boss@godance.tv",
+        "ascAppId": "6742553453",
+        "appleTeamId": "JRJGS4U2DJ"
+      },
+      "android": {
+        "track": "internal",
+        "releaseStatus": "draft"
+      }
+    }
   }
 }
