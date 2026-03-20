@@ -17,9 +17,8 @@ dist/
 *.jsbundle
 *.jsbundle.map
 
-# Firebase (secrets)
-google-services.json
-GoogleService-Info.plist
+# Firebase — placeholder files are committed for EAS Build
+# Real configs are injected via EAS env vars during build
 
 # Android signing
 *.jks
