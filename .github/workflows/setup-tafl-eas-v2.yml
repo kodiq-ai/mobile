@@ -1,0 +1,61 @@
+name: Setup TAFL EAS Creds v2
+on:
+  workflow_dispatch:
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN_TAFL }}
+    steps:
+      - run: npm install -g eas-cli@latest
+      - name: Set ASC Key ID
+        env:
+          VAL: ${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}
+        run: |
+          for ENV in production preview development; do
+            eas env:create --scope project \
+              --project-id da09c24a-b679-4f32-92ee-82c0338c7b27 \
+              --name EXPO_APPLE_APP_STORE_CONNECT_API_KEY_KEY_ID \
+              --value "$VAL" --visibility secret \
+              --environment $ENV 2>/dev/null || \
+            eas env:update --scope project \
+              --project-id da09c24a-b679-4f32-92ee-82c0338c7b27 \
+              --name EXPO_APPLE_APP_STORE_CONNECT_API_KEY_KEY_ID \
+              --value "$VAL" --visibility secret \
+              --environment $ENV 2>/dev/null || echo "skip $ENV key_id"
+          done
+      - name: Set ASC Issuer ID
+        env:
+          VAL: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+        run: |
+          for ENV in production preview development; do
+            eas env:create --scope project \
+              --project-id da09c24a-b679-4f32-92ee-82c0338c7b27 \
+              --name EXPO_APPLE_APP_STORE_CONNECT_API_KEY_ISSUER_ID \
+              --value "$VAL" --visibility secret \
+              --environment $ENV 2>/dev/null || \
+            eas env:update --scope project \
+              --project-id da09c24a-b679-4f32-92ee-82c0338c7b27 \
+              --name EXPO_APPLE_APP_STORE_CONNECT_API_KEY_ISSUER_ID \
+              --value "$VAL" --visibility secret \
+              --environment $ENV 2>/dev/null || echo "skip $ENV issuer"
+          done
+      - name: Set ASC P8 Key
+        env:
+          VAL: ${{ secrets.APPSTORE_CONNECT_API_KEY }}
+        run: |
+          for ENV in production preview development; do
+            eas env:create --scope project \
+              --project-id da09c24a-b679-4f32-92ee-82c0338c7b27 \
+              --name EXPO_APPLE_APP_STORE_CONNECT_API_KEY_KEY_P8 \
+              --value "$VAL" --visibility secret \
+              --environment $ENV 2>/dev/null || \
+            eas env:update --scope project \
+              --project-id da09c24a-b679-4f32-92ee-82c0338c7b27 \
+              --name EXPO_APPLE_APP_STORE_CONNECT_API_KEY_KEY_P8 \
+              --value "$VAL" --visibility secret \
+              --environment $ENV 2>/dev/null || echo "skip $ENV p8"
+          done
+      - name: Verify
+        run: |
+          eas env:list --environment development --project-id da09c24a-b679-4f32-92ee-82c0338c7b27 || true
