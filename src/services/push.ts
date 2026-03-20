@@ -5,6 +5,7 @@ import {
   onTokenRefresh as onFirebaseTokenRefresh,
   AuthorizationStatus,
 } from '@react-native-firebase/messaging';
+import { utils } from '@react-native-firebase/app';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
@@ -25,6 +26,17 @@ const API_URL = `${BASE_URL}/api/academy/push-token`;
  */
 export async function registerPushToken(accessToken?: string): Promise<void> {
   try {
+    // Skip on Android without Google Play Services (emulators, Huawei, etc.)
+    if (Platform.OS === 'android') {
+      const { isAvailable } = utils().playServicesAvailability;
+      if (!isAvailable) {
+        log.info(
+          'Google Play Services unavailable, skipping push registration',
+        );
+        return;
+      }
+    }
+
     const authStatus = await requestPermission(msg);
     const enabled =
       authStatus === AuthorizationStatus.AUTHORIZED ||
