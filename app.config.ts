@@ -22,6 +22,7 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => ({
   runtimeVersion: { policy: 'appVersion' },
   updates: {
     url: 'https://u.expo.dev/5741bfe7-8b41-4619-b7d0-7b5e5850cbdf',
+    enableBsdiffPatchSupport: true,
   },
   extra: {
     eas: { projectId: '5741bfe7-8b41-4619-b7d0-7b5e5850cbdf' },
@@ -42,7 +43,7 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => ({
     bundleIdentifier: 'ai.kodiq',
     buildNumber: String(getVersionCode()),
     supportsTablet: false,
-    appleTeamId: process.env.APPLE_TEAM_ID,
+    appleTeamId: process.env.APPLE_TEAM_ID || 'JRJGS4U2DJ',
     googleServicesFile: './GoogleService-Info.plist',
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
