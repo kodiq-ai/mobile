@@ -71,6 +71,15 @@ export async function registerPushToken(accessToken?: string): Promise<void> {
       log.warn({ status: response.status }, 'Push token registration failed');
     }
   } catch (err) {
+    // Expected failures: missing GMS, placeholder google-services.json, etc.
+    const errMsg = err instanceof Error ? err.message : '';
+    if (
+      errMsg.includes('API key') ||
+      errMsg.includes('MISSING_INSTANCEID_SERVICE')
+    ) {
+      log.warn('Push unavailable (Firebase not configured)');
+      return;
+    }
     log.error({ err }, 'Push registration error');
   }
 }
