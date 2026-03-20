@@ -1,0 +1,22 @@
+appId: ai.kodiq
+name: Tab navigation works
+---
+- waitForAnimationToEnd
+
+# Tap each tab and verify it responds
+- tapOn: "Прогресс"
+- waitForAnimationToEnd
+- assertVisible: "Прогресс"
+
+- tapOn: "AI Ментор"
+- waitForAnimationToEnd
+
+- tapOn: "Лента"
+- waitForAnimationToEnd
+
+- tapOn: "Рейтинг"
+- waitForAnimationToEnd
+
+- tapOn: "Главная"
+- waitForAnimationToEnd
+- assertVisible: "Главная"

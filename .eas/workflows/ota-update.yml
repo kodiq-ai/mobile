@@ -1,0 +1,17 @@
+name: OTA Update
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'App.tsx'
+      - 'app.config.ts'
+
+jobs:
+  update:
+    name: Publish OTA Update
+    type: update
+    params:
+      channel: production
+      message: "Auto-update from ${{ github.sha }}"

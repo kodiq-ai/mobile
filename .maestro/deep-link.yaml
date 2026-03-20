@@ -1,0 +1,14 @@
+appId: ai.kodiq
+name: Deep link scheme works
+---
+- openLink: kodiq://search/
+
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# App should handle the deep link without crashing
+- assertVisible:
+    anyOf:
+      - "Kodiq"
+      - "Catalog"
+      - "Поиск"

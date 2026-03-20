@@ -1,0 +1,46 @@
+name: Build and Submit
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  build-ios:
+    name: Build iOS
+    type: build
+    params:
+      platform: ios
+      profile: production
+
+  build-android:
+    name: Build Android
+    type: build
+    params:
+      platform: android
+      profile: production
+
+  submit-ios:
+    name: Submit to TestFlight
+    type: submit
+    needs: [build-ios]
+    params:
+      platform: ios
+      profile: production
+      build_id: ${{ jobs.build-ios.output.build_id }}
+
+  submit-android:
+    name: Submit to Google Play
+    type: submit
+    needs: [build-android]
+    params:
+      platform: android
+      profile: production
+      build_id: ${{ jobs.build-android.output.build_id }}
+
+  maestro-test:
+    name: E2E Tests
+    type: maestro
+    needs: [build-android]
+    params:
+      build_id: ${{ jobs.build-android.output.build_id }}
+      flow_path: .maestro/

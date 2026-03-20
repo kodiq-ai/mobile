@@ -1,0 +1,15 @@
+appId: ai.kodiq
+name: App launches and shows content
+---
+- launchApp
+
+- waitForAnimationToEnd:
+    timeout: 15000
+
+# Should see either login screen or catalog
+- assertVisible:
+    anyOf:
+      - "Kodiq"
+      - "Catalog"
+      - "Войти"
+      - "Sign In"

@@ -1,0 +1,32 @@
+appId: ai.kodiq
+name: Login with email/password
+---
+# Wait for app to load
+- waitForAnimationToEnd
+
+# Navigate to login if on catalog
+- runFlow:
+    when:
+      visible: Sign in
+    commands:
+      - tapOn: Sign in
+
+# Fill email
+- tapOn: Email
+- inputText: ${EMAIL}
+
+# Fill password
+- tapOn:
+    text: "Пароль"
+- inputText: ${PASSWORD}
+
+# Tap login
+- tapOn: "Войти"
+
+# Verify login succeeded — should see catalog or progress
+- waitForAnimationToEnd:
+    timeout: 10000
+
+- assertVisible:
+    text: "Главная"
+    optional: false

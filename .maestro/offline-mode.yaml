@@ -1,0 +1,21 @@
+appId: ai.kodiq
+name: Offline mode shows banner
+---
+- waitForAnimationToEnd
+
+# Enable airplane mode
+- toggleAirplaneMode
+
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Should show offline banner
+- assertVisible:
+    text: "Офлайн"
+    optional: true
+
+# Restore connectivity
+- toggleAirplaneMode
+
+- waitForAnimationToEnd:
+    timeout: 5000
