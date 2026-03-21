@@ -95,6 +95,7 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => ({
   plugins: [
     '@react-native-firebase/app',
     '@react-native-firebase/crashlytics',
+    '@react-native-firebase/messaging',
     [
       '@sentry/react-native/expo',
       { organization: 'kodiq', project: 'kodiq-mobile', useNativeInit: true },
