@@ -4,6 +4,15 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Build type'
+        required: true
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - debug
 
 jobs:
   build:
@@ -52,7 +61,31 @@ jobs:
       - name: Install CocoaPods
         run: cd ios && pod install
 
+      # Debug build — just build and upload artifact
+      - name: Build debug
+        if: inputs.profile == 'debug'
+        env:
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          xcodebuild -workspace ios/KodiqAcademy.xcworkspace \
+            -scheme KodiqAcademy \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload debug build
+        if: inputs.profile == 'debug'
+        uses: actions/upload-artifact@v4
+        with:
+          name: kodiq-ios-debug-${{ github.sha }}
+          path: build/Build/Products/Debug-iphonesimulator/
+          retention-days: 30
+
+      # Release build — sign and upload to TestFlight
       - name: Build and upload to TestFlight
+        if: inputs.profile != 'debug'
         env:
           APPSTORE_CONNECT_API_KEY_ID: ${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}
           APPSTORE_CONNECT_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
