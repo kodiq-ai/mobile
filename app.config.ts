@@ -116,8 +116,9 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => ({
     './plugins/withAndroidFcmDefaults',
     './plugins/withAndroidShortcuts',
     './plugins/withAndroidProguard',
-    './plugins/withIosStreakWidgetModule',
     // Widget extension — skip in dev builds (App Group provisioning issue)
-    ...(process.env.SKIP_WIDGET ? [] : ['@bacons/apple-targets']),
+    ...(process.env.SKIP_WIDGET
+      ? []
+      : ['./plugins/withIosStreakWidgetModule', '@bacons/apple-targets']),
   ],
 });
