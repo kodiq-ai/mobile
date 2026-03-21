@@ -25,7 +25,24 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => ({
     enableBsdiffPatchSupport: true,
   },
   extra: {
-    eas: { projectId: '5741bfe7-8b41-4619-b7d0-7b5e5850cbdf' },
+    eas: {
+      projectId: '5741bfe7-8b41-4619-b7d0-7b5e5850cbdf',
+      build: {
+        experimental: {
+          ios: {
+            appExtensions: [
+              {
+                targetName: 'StreakWidget',
+                bundleIdentifier: 'ai.kodiq.StreakWidget',
+                entitlements: {
+                  'com.apple.security.application-groups': ['group.ai.kodiq'],
+                },
+              },
+            ],
+          },
+        },
+      },
+    },
   },
   orientation: 'portrait',
   icon: './assets/icon.png',
