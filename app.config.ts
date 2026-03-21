@@ -97,7 +97,7 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => ({
     '@react-native-firebase/crashlytics',
     [
       '@sentry/react-native/expo',
-      { organization: 'kodiq', project: 'kodiq-mobile' },
+      { organization: 'kodiq', project: 'kodiq-mobile', useNativeInit: true },
     ],
     '@react-native-google-signin/google-signin',
     [
