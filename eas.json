@@ -4,7 +4,8 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "channel": "development"
+      "channel": "development",
+      "env": { "SKIP_WIDGET": "1" }
     },
     "preview": {
       "distribution": "internal",
