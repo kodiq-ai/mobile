@@ -19,10 +19,12 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => ({
   slug: 'kodiq-academy',
   owner: 'kodiq',
   version: '1.0.0',
-  runtimeVersion: { policy: 'appVersion' },
+  runtimeVersion: { policy: 'fingerprint' },
   updates: {
     url: 'https://u.expo.dev/5741bfe7-8b41-4619-b7d0-7b5e5850cbdf',
     enableBsdiffPatchSupport: true,
+    checkAutomatically: 'ON_LOAD',
+    fallbackToCacheTimeout: 3000,
   },
   extra: {
     eas: {
@@ -116,6 +118,7 @@ export default ({ config }: { config: ExpoConfig }): ExpoConfig => ({
     './plugins/withAndroidFcmDefaults',
     './plugins/withAndroidShortcuts',
     './plugins/withAndroidProguard',
+    ['expo-dev-client', { launchMode: 'most-recent' }],
     // Widget extension — skip in dev builds (App Group provisioning issue)
     ...(process.env.SKIP_WIDGET
       ? []
