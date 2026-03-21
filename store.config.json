@@ -1,0 +1,46 @@
+{
+  "apple": {
+    "info": {
+      "ru": {
+        "title": "Kodiq Academy",
+        "subtitle": "Учись программировать играючи",
+        "description": "Kodiq Academy — интерактивная платформа для изучения программирования. Проходи уроки, решай задачи, отслеживай прогресс с помощью виджета серии дней.\n\nОсновные возможности:\n• Структурированные курсы по программированию\n• Интерактивные задания с моментальной проверкой\n• Виджет серии дней (Streak Widget) на главном экране\n• Уведомления для поддержания учебного ритма\n• Биометрический вход (Face ID / отпечаток)\n• Тёмная тема для комфортного обучения\n\nНачни учиться прямо сейчас — всё, что нужно, уже в приложении.",
+        "keywords": "программирование,обучение,курсы,код,разработка,уроки,задачи,python,javascript,academy"
+      },
+      "en-US": {
+        "title": "Kodiq Academy",
+        "subtitle": "Learn to code the fun way",
+        "description": "Kodiq Academy is an interactive platform for learning programming. Complete lessons, solve challenges, and track your progress with the streak widget.\n\nKey features:\n• Structured programming courses\n• Interactive challenges with instant feedback\n• Streak Widget on your home screen\n• Notifications to keep your learning habit\n• Biometric login (Face ID / fingerprint)\n• Dark theme for comfortable learning\n\nStart learning now — everything you need is right in the app.",
+        "keywords": "programming,learning,courses,code,development,lessons,challenges,python,javascript,academy"
+      }
+    },
+    "categories": {
+      "primary": "EDUCATION",
+      "secondary": "DEVELOPER_TOOLS"
+    },
+    "advisoryRatings": {
+      "alcoholTobaccoOrDrugUseOrReferences": "NONE",
+      "contests": "NONE",
+      "gamblingAndContests": "NONE",
+      "gambling": false,
+      "horrorOrFearThemes": "NONE",
+      "matureOrSuggestiveThemes": "NONE",
+      "medicalOrTreatmentInformation": "NONE",
+      "profanityOrCrudeHumor": "NONE",
+      "sexualContentGraphicAndNudity": "NONE",
+      "sexualContentOrNudity": "NONE",
+      "violenceCartoonOrFantasy": "NONE",
+      "violenceRealistic": "NONE",
+      "violenceRealisticProlongedGraphicOrSadistic": "NONE",
+      "kidsAgeBand": null,
+      "unrestrictedWebAccess": false
+    },
+    "review": {
+      "firstName": "Artem",
+      "lastName": "Boev",
+      "email": "boev.artem.dev@gmail.com",
+      "phone": "+7 999 000 0000",
+      "notes": ""
+    }
+  }
+}
