@@ -4,20 +4,10 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
-    inputs:
-      profile:
-        description: 'Build profile'
-        required: true
-        default: 'production'
-        type: choice
-        options:
-          - production
-          - preview
-          - development
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     timeout-minutes: 60
 
     steps:
@@ -30,33 +20,51 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
       - run: pnpm install --frozen-lockfile
 
-      - uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-
-      - name: Decode Firebase config
+      - name: Decode GoogleService-Info.plist
         env:
           GOOGLE_SERVICE_INFO_B64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
         run: echo "$GOOGLE_SERVICE_INFO_B64" | base64 -d > GoogleService-Info.plist
 
-      - name: Write ASC API key for EAS credentials
-        env:
-          ASC_KEY_CONTENT: ${{ secrets.APPSTORE_CONNECT_API_KEY }}
-        run: |
-          mkdir -p ~/.appstoreconnect/private_keys
-          echo "$ASC_KEY_CONTENT" | base64 -d > ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}.p8
+      - name: Generate native project
+        run: npx expo prebuild --platform ios --no-install
 
-      - name: Build iOS
+      - name: Set up SSH for Match cert repo
         env:
-          EXPO_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          EXPO_ASC_API_KEY_ID: ${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}
-          EXPO_ASC_API_KEY_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
-          EXPO_ASC_API_KEY_PATH: ~/.appstoreconnect/private_keys/AuthKey_${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}.p8
+          MATCH_DEPLOY_KEY: ${{ secrets.MATCH_DEPLOY_KEY }}
         run: |
-          eas build \
-            --platform ios \
-            --profile ${{ inputs.profile || 'production' }} \
-            --non-interactive
+          mkdir -p ~/.ssh
+          echo "$MATCH_DEPLOY_KEY" > ~/.ssh/match_key
+          chmod 600 ~/.ssh/match_key
+          ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+          cat >> ~/.ssh/config << 'SSHEOF'
+          Host github.com
+            IdentityFile ~/.ssh/match_key
+            StrictHostKeyChecking no
+          SSHEOF
+
+      - name: Install CocoaPods
+        run: cd ios && pod install
+
+      - name: Build and upload to TestFlight
+        env:
+          APPSTORE_CONNECT_API_KEY_ID: ${{ secrets.APPSTORE_CONNECT_API_KEY_ID }}
+          APPSTORE_CONNECT_ISSUER_ID: ${{ secrets.APPSTORE_CONNECT_ISSUER_ID }}
+          APPSTORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APPSTORE_CONNECT_API_KEY }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: bundle exec fastlane ios beta
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-logs
+          path: ~/Library/Logs/gym/
+          retention-days: 7
